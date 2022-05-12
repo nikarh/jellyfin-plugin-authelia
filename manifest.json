@@ -1,0 +1,13 @@
+[
+    {
+        "guid": "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091",
+        "name": "Authelia Authentication",
+        "description": "Authenticate with Authelia\n",
+        "overview": "Authenticate users via Authelia",
+        "owner": "jellyfin",
+        "category": "Authentication",
+        "imageUrl": "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/master/logo.png",
+        "versions": [
+        ]
+    }
+]

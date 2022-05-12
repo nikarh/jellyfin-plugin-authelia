@@ -1,0 +1,78 @@
+using System;
+using System.Threading.Tasks;
+using Jellyfin.Data.Entities;
+using MediaBrowser.Common;
+using MediaBrowser.Controller.Authentication;
+using MediaBrowser.Controller.Library;
+using Microsoft.Extensions.Logging;
+
+namespace Jellyfin.Plugin.Authelia_Auth
+{
+    /// <summary>
+    /// Authelia Authentication Provider Plugin.
+    /// </summary>
+    public class AutheliaAuthenticationProviderPlugin : IAuthenticationProvider
+    {
+        private readonly ILogger<AutheliaAuthenticationProviderPlugin> _logger;
+        private readonly IApplicationHost _applicationHost;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AutheliaAuthenticationProviderPlugin"/> class.
+        /// </summary>
+        /// <param name="applicationHost">Instance of the <see cref="IApplicationHost"/> interface.</param>
+        /// <param name="logger">Instance of the <see cref="ILogger{AutheliaAuthenticationProviderPlugin}"/> interface.</param>
+        public AutheliaAuthenticationProviderPlugin(IApplicationHost applicationHost, ILogger<AutheliaAuthenticationProviderPlugin> logger)
+        {
+            _logger = logger;
+            _applicationHost = applicationHost;
+        }
+
+        /// <summary>
+        /// Gets plugin name.
+        /// </summary>
+        public string Name => "Authelia-Authentication";
+
+        /// <summary>
+        /// Gets a value indicating whether gets plugin enabled.
+        /// </summary>
+        public bool IsEnabled => true;
+
+        /// <summary>
+        /// Authenticate user against the ldap server.
+        /// </summary>
+        /// <param name="username">Username to authenticate.</param>
+        /// <param name="password">Password to authenticate.</param>
+        /// <returns>A <see cref="ProviderAuthenticationResult"/> with the authentication result.</returns>
+        /// <exception cref="AuthenticationException">Exception when failing to authenticate.</exception>
+        public async Task<ProviderAuthenticationResult> Authenticate(string username, string password)
+        {
+            var userManager = _applicationHost.Resolve<IUserManager>();
+            var config = AutheliaPlugin.Instance.Configuration;
+            var auth = await new Authenticator().Authenticate(config, username, password);
+
+            try
+            {
+                userManager.GetUserByName(username);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("User Manager could not find a user for Authelia User", e);
+                throw new AuthenticationException("Error completing Authelia login. Invalid username or password.");
+            }
+
+            return auth;
+        }
+
+        /// <inheritdoc />
+        public bool HasPassword(User user)
+        {
+            return true;
+        }
+
+        /// <inheritdoc />
+        public Task ChangePassword(User user, string newPassword)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}

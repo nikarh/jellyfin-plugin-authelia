@@ -1,0 +1,9 @@
+################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+*/obj
+*/bin
+/bin
+.idea
+artifacts
+authelia-authentication

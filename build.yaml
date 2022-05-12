@@ -1,0 +1,15 @@
+name: "Authelia Authentication"
+guid: "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091"
+imageUrl: "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/master/logo.png"
+version: "15"
+targetAbi: "10.8.0.0"
+framework: "net6.0"
+owner: "jellyfin"
+overview: "Authenticate users via Authelia"
+description: |
+  Authenticate with Authelia
+category: "Authentication"
+artifacts:
+  - "Authelia-Auth.dll"
+changelog: |2-
+  Initial release

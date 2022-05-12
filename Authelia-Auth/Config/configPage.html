@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+<head>
+    <title>Authelia</title>
+</head>
+<body>
+    <div data-role="page" class="page type-interior pluginConfigurationPage esqConfigurationPage">
+        <div data-role="content">
+            <div class="content-primary">
+                <form class="esqConfigurationForm">
+                    <div class="verticalSection verticalSection-extrabottompadding">
+                        <div class="sectionTitleContainer flex align-items-center">
+                            <h2 class="sectionTitle">Authelia Settings:</h2>
+                        </div>
+                        <p><i>Note:</i> Making changes to this configuration requires a restart of Jellyfin.</p>
+                        <div class="verticalSection" title="Authelia Settings">
+                            <div class="inputContainer">
+                                <input is="emby-input" type="text" id="txtAutheliaServer" required placeholder="authelia" label="Authelia Server:" />
+                                <div class="fieldDescription">The server URL for the Authelia server you wish to use for Authentication.</div>
+                            </div>
+                            <div class="inputContainer">
+                                <input is="emby-input" type="text" id="txtJellyfinUrl" required placeholder="jellyfin" label="Jellyfin Url:" />
+                                <div class="fieldDescription">The external url of jellyfin used by Authelia for authentication rules</div>
+                            </div>
+                        </div>
+                        <div>
+                            <button is="emby-button" type="submit" data-theme="b" class="raised button-submit block">
+                                <span>${Save}</span>
+                            </button>
+                            <button is="emby-button" type="button" class="raised button-cancel block btnCancel" onclick="history.back();">
+                                <span>${ButtonCancel}</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            var AutheliaConfigurationPage = {
+                pluginUniqueId: "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091",
+                AutheliaServer: document.querySelector("#txtAutheliaServer"),
+                JellyfinUrl: document.querySelector("#txtJellyfinUrl"),
+            };
+
+            document.querySelector('.esqConfigurationPage').addEventListener("pageshow", function () {
+                window.ApiClient.getPluginConfiguration(AutheliaConfigurationPage.pluginUniqueId).then(function (config) {
+                    AutheliaConfigurationPage.AutheliaServer.value = config.AutheliaServer;
+                    AutheliaConfigurationPage.JellyfinUrl.value = config.JellyfinUrl;
+                });
+            });
+
+            var form = document.querySelector(".esqConfigurationForm");
+            form.addEventListener("submit", function(e){
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+
+                window.ApiClient.getPluginConfiguration(AutheliaConfigurationPage.pluginUniqueId).then(function (config) {
+                    config.AutheliaServer = AutheliaConfigurationPage.AutheliaServer.value;
+                    config.JellyfinUrl = AutheliaConfigurationPage.JellyfinUrl.value;
+                    window.ApiClient.updatePluginConfiguration(AutheliaConfigurationPage.pluginUniqueId, config)
+                        .then(Dashboard.processPluginConfigurationUpdateResult);
+                });
+
+                // Disable default form submission
+                return false;
+            });
+        </script>
+    </div>
+</body>
+</html>
