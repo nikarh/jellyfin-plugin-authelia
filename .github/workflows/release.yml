@@ -23,7 +23,7 @@ jobs:
       - name: Restore nuget packages
         run: dotnet restore Authelia-Auth/Authelia-Auth.csproj
       - name: Setup python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.8
       - name: Install JPRM
