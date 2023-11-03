@@ -12,7 +12,7 @@ A plugin for Jellyfin that allows using [Authelia](https://www.authelia.com/) as
 ## 🤔 Description
 
 Unlike [SSO plugin](https://github.com/9p4/jellyfin-plugin-sso), this plugin uses [Authelia HTTP API](https://github.com/authelia/authelia/blob/master/api/openapi.yml).
-The benefit of that approach is a native Jellyfin form and API for authentication. This means that any existing Jellyfin client should work with this plugin/
+The benefit of that approach is a native Jellyfin form and API for authentication. This means that any existing Jellyfin client should work with this plugin.
 The drawback of this approach though is that only username+password authentication is supported (no 2FA).
 
 The plugin will automatically create a new Jellyfin user upon successful authentication. Any valid Authelia user can login to Jellyfin.
