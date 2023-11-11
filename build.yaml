@@ -4,7 +4,7 @@ imageUrl: "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/mas
 version: "15"
 targetAbi: "10.8.0.0"
 framework: "net6.0"
-owner: "jellyfin"
+owner: "nikarh"
 overview: "Authenticate users via Authelia"
 description: |
   Authenticate with Authelia
@@ -12,4 +12,21 @@ category: "Authentication"
 artifacts:
   - "Authelia-Auth.dll"
 changelog: |2-
-  Initial release
+  ## [1.0.12] - 2023.11.11
+
+  ### Fixed
+  - Latest version didn't work with Jellyfin 10.8.0 
+
+  ### Added
+  - A new configuration param for a custom root CA certificate
+  - A new configuration param to enable/disable user creation on login
+
+  ## [1.0.11] - 2023.10.05
+
+  ### Changed
+  - Updated dependencies
+
+  ## [1.0.10] - 2022.05.12
+
+  ## Added
+  - Initial release

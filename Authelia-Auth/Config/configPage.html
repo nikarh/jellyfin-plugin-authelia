@@ -1,71 +1,164 @@
 <!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/html">
-<head>
-    <title>Authelia</title>
-</head>
-<body>
-    <div data-role="page" class="page type-interior pluginConfigurationPage esqConfigurationPage">
-        <div data-role="content">
-            <div class="content-primary">
-                <form class="esqConfigurationForm">
-                    <div class="verticalSection verticalSection-extrabottompadding">
-                        <div class="sectionTitleContainer flex align-items-center">
-                            <h2 class="sectionTitle">Authelia Settings:</h2>
-                        </div>
-                        <p><i>Note:</i> Making changes to this configuration requires a restart of Jellyfin.</p>
-                        <div class="verticalSection" title="Authelia Settings">
-                            <div class="inputContainer">
-                                <input is="emby-input" type="text" id="txtAutheliaServer" required placeholder="authelia" label="Authelia Server:" />
-                                <div class="fieldDescription">The server URL for the Authelia server you wish to use for Authentication.</div>
+<html
+    lang="en"
+    xmlns="http://www.w3.org/1999/html"
+>
+    <head>
+        <title>Authelia</title>
+    </head>
+    <body>
+        <div
+            data-role="page"
+            class="page type-interior pluginConfigurationPage esqConfigurationPage"
+        >
+            <div data-role="content">
+                <div class="content-primary">
+                    <form class="esqConfigurationForm">
+                        <div class="verticalSection verticalSection-extrabottompadding">
+                            <div class="sectionTitleContainer flex align-items-center">
+                                <h2 class="sectionTitle">Authelia Settings:</h2>
                             </div>
-                            <div class="inputContainer">
-                                <input is="emby-input" type="text" id="txtJellyfinUrl" required placeholder="jellyfin" label="Jellyfin Url:" />
-                                <div class="fieldDescription">The external url of jellyfin used by Authelia for authentication rules</div>
+                            <p><i>Note:</i> Making changes to this configuration requires a restart of Jellyfin.</p>
+                            <div
+                                class="verticalSection"
+                                title="Authelia Settings"
+                            >
+                                <div class="inputContainer">
+                                    <input
+                                        is="emby-input"
+                                        type="text"
+                                        id="txtAutheliaServer"
+                                        required
+                                        placeholder="authelia"
+                                        label="Authelia Server:"
+                                    />
+                                    <div class="fieldDescription">The server URL for the Authelia server you wish to use for Authentication.</div>
+                                </div>
+                                <div class="inputContainer">
+                                    <label
+                                        >Authelia self-signed root CA:
+                                        <textarea
+                                            is="emby-textarea"
+                                            class="emby-textarea"
+                                            type="text"
+                                            id="txtAutheliaRootCa"
+                                            placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+                                            rows="3"
+                                        ></textarea>
+                                    </label>
+                                    <div class="fieldDescription">
+                                        <div>The root CA for the Authelia server you wish to use for Authentication.</div>
+                                        <div>Leave this field empty unless you use a self-signed certificate for Authelia.</div>
+                                    </div>
+                                </div>
+                                <div class="checkboxContainer checkboxContainer-withDescription">
+                                    <label>
+                                        <input
+                                            is="emby-checkbox"
+                                            type="checkbox"
+                                            id="boolCreateUserIfNotExists"
+                                        />
+                                        <span>Create a new user on successful login</span>
+                                    </label>
+                                    <div class="fieldDescription">Indicates if a Jellyfin user should be created on successful Authelia login, if a user does not exist in Jellyfin.</div>
+                                </div>
+                                <div class="inputContainer">
+                                    <input
+                                        is="emby-input"
+                                        type="text"
+                                        id="txtJellyfinUrl"
+                                        required
+                                        placeholder="jellyfin"
+                                        label="Jellyfin Url:"
+                                    />
+                                    <div class="fieldDescription">The external url of jellyfin used by Authelia for authentication rules.</div>
+                                </div>
                             </div>
                         </div>
                         <div>
-                            <button is="emby-button" type="submit" data-theme="b" class="raised button-submit block">
+                            <button
+                                is="emby-button"
+                                type="submit"
+                                data-theme="b"
+                                class="raised button-submit block"
+                            >
                                 <span>${Save}</span>
                             </button>
-                            <button is="emby-button" type="button" class="raised button-cancel block btnCancel" onclick="history.back();">
+                            <button
+                                is="emby-button"
+                                type="button"
+                                class="raised button-cancel block btnCancel"
+                                onclick="history.back();"
+                            >
                                 <span>${ButtonCancel}</span>
                             </button>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
+
+            <style>
+                .emby-textarea {
+                    display: block;
+                    margin: 0;
+                    margin-bottom: 0 !important;
+                    font-size: inherit;
+                    font-family: inherit;
+                    font-weight: inherit;
+                    color: inherit;
+                    padding: 0.35em 0.25em;
+                    box-sizing: border-box;
+                    outline: none !important;
+                    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+                    width: 100%;
+                }
+                .emby-textarea::-moz-focus-inner {
+                    border: 0;
+                }
+                .emby-textarea + .fieldDescription {
+                    margin-top: 0.25em;
+                }
+            </style>
+
+            <script type="text/javascript">
+                var AutheliaConfigurationPage = {
+                    pluginUniqueId: "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091",
+                    AutheliaServer: document.querySelector("#txtAutheliaServer"),
+                    AutheliaRootCa: document.querySelector("#txtAutheliaRootCa"),
+                    CreateUserIfNotExists: document.querySelector("#boolCreateUserIfNotExists"),
+                    JellyfinUrl: document.querySelector("#txtJellyfinUrl"),
+                };
+
+                document.querySelector(".esqConfigurationPage").addEventListener("pageshow", function () {
+                    window.ApiClient.getPluginConfiguration(AutheliaConfigurationPage.pluginUniqueId).then(function (config) {
+                        AutheliaConfigurationPage.AutheliaServer.value = config.AutheliaServer;
+                        AutheliaConfigurationPage.AutheliaRootCa.value = config.AutheliaRootCa;
+                        AutheliaConfigurationPage.CreateUserIfNotExists.checked = config.CreateUserIfNotExists;
+                        AutheliaConfigurationPage.JellyfinUrl.value = config.JellyfinUrl;
+
+                        AutheliaConfigurationPage.AutheliaRootCa.placeholder = AutheliaConfigurationPage.AutheliaRootCa.placeholder.replace(/\\n/g, "\n");
+                    });
+                });
+
+                var form = document.querySelector(".esqConfigurationForm");
+                form.addEventListener("submit", function (e) {
+                    e.preventDefault();
+                    Dashboard.showLoadingMsg();
+
+                    console.log("calling api????");
+                    window.ApiClient.getPluginConfiguration(AutheliaConfigurationPage.pluginUniqueId).then(function (config) {
+                        config.AutheliaServer = AutheliaConfigurationPage.AutheliaServer.value;
+                        config.AutheliaRootCa = AutheliaConfigurationPage.AutheliaRootCa.value;
+                        config.CreateUserIfNotExists = AutheliaConfigurationPage.CreateUserIfNotExists.checked;
+                        config.JellyfinUrl = AutheliaConfigurationPage.JellyfinUrl.value;
+                        console.log("????");
+                        window.ApiClient.updatePluginConfiguration(AutheliaConfigurationPage.pluginUniqueId, config).then(Dashboard.processPluginConfigurationUpdateResult);
+                    });
+
+                    // Disable default form submission
+                    return false;
+                });
+            </script>
         </div>
-
-        <script type="text/javascript">
-            var AutheliaConfigurationPage = {
-                pluginUniqueId: "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091",
-                AutheliaServer: document.querySelector("#txtAutheliaServer"),
-                JellyfinUrl: document.querySelector("#txtJellyfinUrl"),
-            };
-
-            document.querySelector('.esqConfigurationPage').addEventListener("pageshow", function () {
-                window.ApiClient.getPluginConfiguration(AutheliaConfigurationPage.pluginUniqueId).then(function (config) {
-                    AutheliaConfigurationPage.AutheliaServer.value = config.AutheliaServer;
-                    AutheliaConfigurationPage.JellyfinUrl.value = config.JellyfinUrl;
-                });
-            });
-
-            var form = document.querySelector(".esqConfigurationForm");
-            form.addEventListener("submit", function(e){
-                e.preventDefault();
-                Dashboard.showLoadingMsg();
-
-                window.ApiClient.getPluginConfiguration(AutheliaConfigurationPage.pluginUniqueId).then(function (config) {
-                    config.AutheliaServer = AutheliaConfigurationPage.AutheliaServer.value;
-                    config.JellyfinUrl = AutheliaConfigurationPage.JellyfinUrl.value;
-                    window.ApiClient.updatePluginConfiguration(AutheliaConfigurationPage.pluginUniqueId, config)
-                        .then(Dashboard.processPluginConfigurationUpdateResult);
-                });
-
-                // Disable default form submission
-                return false;
-            });
-        </script>
-    </div>
-</body>
+    </body>
 </html>

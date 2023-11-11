@@ -1,9 +1,11 @@
 using System;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Jellyfin.Data.Entities;
 using MediaBrowser.Common;
 using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Cryptography;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Authelia_Auth
@@ -13,18 +15,21 @@ namespace Jellyfin.Plugin.Authelia_Auth
     /// </summary>
     public class AutheliaAuthenticationProviderPlugin : IAuthenticationProvider
     {
-        private readonly ILogger<AutheliaAuthenticationProviderPlugin> _logger;
         private readonly IApplicationHost _applicationHost;
+        private readonly ILogger<AutheliaAuthenticationProviderPlugin> _logger;
+        private readonly ICryptoProvider _cryptoProvider;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AutheliaAuthenticationProviderPlugin"/> class.
         /// </summary>
         /// <param name="applicationHost">Instance of the <see cref="IApplicationHost"/> interface.</param>
         /// <param name="logger">Instance of the <see cref="ILogger{AutheliaAuthenticationProviderPlugin}"/> interface.</param>
-        public AutheliaAuthenticationProviderPlugin(IApplicationHost applicationHost, ILogger<AutheliaAuthenticationProviderPlugin> logger)
+        /// <param name="cryptoProvider">Instance of the <see cref="ILogger{ICryptoProvider}"/> interface.</param>
+        public AutheliaAuthenticationProviderPlugin(IApplicationHost applicationHost, ILogger<AutheliaAuthenticationProviderPlugin> logger, ICryptoProvider cryptoProvider)
         {
             _logger = logger;
             _applicationHost = applicationHost;
+            _cryptoProvider = cryptoProvider;
         }
 
         /// <summary>
@@ -48,16 +53,27 @@ namespace Jellyfin.Plugin.Authelia_Auth
         {
             var userManager = _applicationHost.Resolve<IUserManager>();
             var config = AutheliaPlugin.Instance.Configuration;
+
             var auth = await new Authenticator().Authenticate(config, username, password);
 
+            User user = null;
             try
             {
-                userManager.GetUserByName(username);
+                user = userManager.GetUserByName(username);
             }
             catch (Exception e)
             {
                 _logger.LogError("User Manager could not find a user for Authelia User", e);
                 throw new AuthenticationException("Error completing Authelia login. Invalid username or password.");
+            }
+
+            if (config.CreateUserIfNotExists && user == null)
+            {
+                _logger.LogInformation("Authelia user doesn't exist, creating...");
+                user = await userManager.CreateUserAsync(username).ConfigureAwait(false);
+
+                user.AuthenticationProviderId = GetType().FullName;
+                user.Password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
             }
 
             return auth;
