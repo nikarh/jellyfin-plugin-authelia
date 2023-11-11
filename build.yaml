@@ -7,13 +7,14 @@ framework: "net6.0"
 owner: "nikarh"
 overview: "Authenticate users via Authelia"
 description: |
-  Authenticate with Authelia
+  Authenticate your Jellyfin with Authelia, and optionally create users who do not yet exist automatically.
+
+  This plugin uses Authelia HTTP API for authentication. Unlike with an SSO plugin, this allows using the existing Jellyfin login UI and API, which is compatible with all existing Jellyfin clients.
+  The main drawback of this approach is that 2FA is not supported.
 category: "Authentication"
 artifacts:
   - "Authelia-Auth.dll"
 changelog: |2-
-  ## [1.0.12] - 2023.11.11
-
   ### Fixed
   - Latest version didn't work with Jellyfin 10.8.0 
 

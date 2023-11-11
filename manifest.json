@@ -2,7 +2,7 @@
     {
         "guid": "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091",
         "name": "Authelia Authentication",
-        "description": "Authenticate with Authelia\n",
+        "description": "Authenticate your Jellyfin with Authelia, and optionally create users who do not yet exist automatically.\n\nThis plugin uses Authelia HTTP API for authentication. Unlike with an SSO plugin, this allows using the existing Jellyfin login UI and API, which is compatible with all existing Jellyfin clients.\nThe main drawback of this approach is that 2FA is not supported.",
         "overview": "Authenticate users via Authelia",
         "owner": "nikarh",
         "category": "Authentication",
