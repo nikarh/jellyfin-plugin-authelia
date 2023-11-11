@@ -10,7 +10,7 @@
         "versions": [
             {
                 "version": "1.0.12.0",
-                "changelog": "## [1.0.12] - 2023.11.11\n\n### Fixed\n- Latest version didn't work with Jellyfin 10.8.0 \n\n### Added\n- A new configuration param for a custom root CA certificate\n- A new configuration param to enable/disable user creation on login\n\n## [1.0.11] - 2023.10.05\n\n### Changed\n- Updated dependencies\n\n## [1.0.10] - 2022.05.12\n\n## Added\n- Initial release",
+                "changelog": "### Fixed\n- Latest version didn't work with Jellyfin 10.8.0 \n\n### Added\n- A new configuration param for a custom root CA certificate\n- A new configuration param to enable/disable user creation on login\n\n",
                 "targetAbi": "10.8.0.0",
                 "sourceUrl": "https://github.com/nikarh/jellyfin-plugin-authelia/releases/download/1.0.12/authelia-authentication_1.0.12.0.zip",
                 "checksum": "359bc1e7ccd4a466b5cee2fea0fdd134",
@@ -18,7 +18,7 @@
             },
             {
                 "version": "1.0.11.0",
-                "changelog": "Initial release",
+                "changelog": "### Changed\n- Upgraded dependencies",
                 "targetAbi": "10.8.0.0",
                 "sourceUrl": "https://github.com/nikarh/jellyfin-plugin-authelia/releases/download/1.0.11/authelia-authentication_1.0.11.0.zip",
                 "checksum": "6c8add9f44d1619228e71e0d69892b00",
@@ -26,7 +26,7 @@
             },
             {
                 "version": "1.0.10.0",
-                "changelog": "Initial release",
+                "changelog": "### Added\n- Initial release",
                 "targetAbi": "10.8.0.0",
                 "sourceUrl": "https://github.com/nikarh/jellyfin-plugin-authelia/releases/download/1.0.10/authelia-authentication_1.0.10.0.zip",
                 "checksum": "509ac4b4c9c21cd6555ecc4d5b9cbee1",

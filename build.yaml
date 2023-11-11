@@ -20,13 +20,3 @@ changelog: |2-
   ### Added
   - A new configuration param for a custom root CA certificate
   - A new configuration param to enable/disable user creation on login
-
-  ## [1.0.11] - 2023.10.05
-
-  ### Changed
-  - Updated dependencies
-
-  ## [1.0.10] - 2022.05.12
-
-  ## Added
-  - Initial release
