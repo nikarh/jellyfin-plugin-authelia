@@ -27,5 +27,5 @@ The plugin will automatically create a new Jellyfin user upon successful authent
 
 All files in this repository excluding the [Authelia logo](./logo.png) are licensed under an [MIT](./LICENSE) license.
 
-The [Authelia logo](./logo.png) in this repository is a modified version of the [Authelia title logo](https://www.authelia.com/images/branding/title.svg) with added paddings and a background, rasterized as a PNG, and is licensed under [APACHE 2](https://github.com/authelia/authelia/blob/master/LICENSE) license (see [Authelia branding guide](https://www.authelia.com/reference/guides/branding/)).
+The [Authelia logo](./logo.png) in this repository is a modified version of the [Authelia title logo](https://www.authelia.com/images/branding/title.svg) with added paddings and a background, rasterized as a PNG, and is licensed under the [Apache 2.0](https://github.com/authelia/authelia/blob/master/LICENSE) license (see [Authelia branding guide](https://www.authelia.com/reference/guides/branding/)).
 
