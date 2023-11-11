@@ -4,10 +4,18 @@
         "name": "Authelia Authentication",
         "description": "Authenticate with Authelia\n",
         "overview": "Authenticate users via Authelia",
-        "owner": "jellyfin",
+        "owner": "nikarh",
         "category": "Authentication",
         "imageUrl": "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/master/logo.png",
         "versions": [
+            {
+                "version": "1.0.12.0",
+                "changelog": "## [1.0.12] - 2023.11.11\n\n### Fixed\n- Latest version didn't work with Jellyfin 10.8.0 \n\n### Added\n- A new configuration param for a custom root CA certificate\n- A new configuration param to enable/disable user creation on login\n\n## [1.0.11] - 2023.10.05\n\n### Changed\n- Updated dependencies\n\n## [1.0.10] - 2022.05.12\n\n## Added\n- Initial release",
+                "targetAbi": "10.8.0.0",
+                "sourceUrl": "https://github.com/nikarh/jellyfin-plugin-authelia/releases/download/1.0.12/authelia-authentication_1.0.12.0.zip",
+                "checksum": "359bc1e7ccd4a466b5cee2fea0fdd134",
+                "timestamp": "2023-11-11T12:15:19Z"
+            },
             {
                 "version": "1.0.11.0",
                 "changelog": "Initial release",
