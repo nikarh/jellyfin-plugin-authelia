@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -37,6 +38,20 @@ namespace Jellyfin.Plugin.Authelia_Auth
         [JsonPropertyName("data")]
         public UserInfoResponseData Data { get; init; }
     }
+
+
+    public class UserInfo
+    {
+        /// <summary>
+        /// User info object
+        /// </summary>
+     
+        public string Username { get; set; };
+        public string Email { get; set; };
+        public string DisplayName { get; set; };
+        public bool IsAdmin { get; set; };
+        public bool IsUser { get; set; };
+    }
 #pragma warning restore SA1649
 #pragma warning restore SA1402
 
@@ -53,7 +68,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
         /// <param name="password">Password to authenticate.</param>
         /// <returns>A <see cref="ProviderAuthenticationResult"/> with the authentication result.</returns>
         /// <exception cref="AuthenticationException">Exception when failing to authenticate.</exception>
-        public async Task<ProviderAuthenticationResult> Authenticate(PluginConfiguration config, string username, string password)
+        public async UserInfo Authenticate(PluginConfiguration config, string username, string password)
         {
             var cookieContainer = new CookieContainer();
             using var handler = new HttpClientHandler()
@@ -100,21 +115,38 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 {
                     throw new AuthenticationException("User doesn't have access to this service.");
                 }
-            }
-
-            try
-            {
-                var userInfoResponse = await client.GetFromJsonAsync<UserInfoResponse>("/api/user/info");
-
-                return new ProviderAuthenticationResult
+                UserInfo user = new UserInfo();
+                if (accessResponse.Headers.TryGetValues("Remote-Groups", out var values))
                 {
-                    Username = username,
-                    DisplayName = userInfoResponse.Data.DisplayName,
-                };
-            }
-            catch
-            {
-                throw new AuthenticationException("Invalid username or password.");
+                    // Header values are in 'values' variable
+                    foreach (var value in values)
+                    {
+                        if (value.Equals(config.AdminGroup))
+                        {
+                            user.IsAdmin = true;
+                        }
+                        else if (value.Equals(config.UserGroup)
+                        {
+                            user.IsUser = true;
+                        }
+                    }
+                }
+                if (accessResponse.Headers.TryGetValues("Remote-Email", out var values))
+                {
+                    // Header values are in 'values' variable
+                    user.Email = values.FirstOrDefault();
+                }
+                if (accessResponse.Headers.TryGetValues("Remote-Name", out var values))
+                {
+                    // Header values are in 'values' variable
+                    user.DisplayName = values.FirstOrDefault();
+                }
+                if (accessResponse.Headers.TryGetValues("Remote-User", out var values))
+                {
+                    // Header values are in 'values' variable
+                    user.Username = values.FirstOrDefault();
+                }
+                return user;
             }
         }
     }

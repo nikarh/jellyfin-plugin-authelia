@@ -15,6 +15,8 @@ namespace Jellyfin.Plugin.Authelia_Auth.Config
             AutheliaServer = "http://authelia";
             JellyfinUrl = "http://jellyfin";
             AutheliaRootCa = string.Empty;
+            AdminGroup = "JellyfinAdmin";
+            UserGroup = "JellyfinUser";
             CreateUserIfNotExists = true;
         }
 

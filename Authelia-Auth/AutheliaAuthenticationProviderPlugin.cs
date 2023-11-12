@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Jellyfin.Data.Entities;
@@ -7,6 +9,7 @@ using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Cryptography;
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualBasic;
 
 namespace Jellyfin.Plugin.Authelia_Auth
 {
@@ -54,7 +57,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
             var userManager = _applicationHost.Resolve<IUserManager>();
             var config = AutheliaPlugin.Instance.Configuration;
 
-            var auth = await new Authenticator().Authenticate(config, username, password);
+            UserInfo userInfo = await new Authenticator().Authenticate(config, username, password);
 
             User user = null;
             try
@@ -76,7 +79,22 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 user.Password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
             }
 
-            return auth;
+            user.Permissions = this.setPersmissions(user.IsAdmin);
+            return Task.FromResult(new ProviderAuthenticationResult
+            {
+                Username = user.UserName,
+                DisplayName = user.DisplayName
+            });
+        }
+
+        private Collection<Permission> setPersmissions(bool isAdmin)
+        {
+            HashSet<Permission> permissions = new HashSet<>();
+            if (isAdmin)
+            {
+                permissions.Add(new Permission(PermissionKind.isAdministrator, true));
+            }
+            return permissions
         }
 
         /// <inheritdoc />
