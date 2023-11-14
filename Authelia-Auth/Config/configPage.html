@@ -18,7 +18,7 @@
                             <div class="sectionTitleContainer flex align-items-center">
                                 <h2 class="sectionTitle">Authelia Settings:</h2>
                             </div>
-                            <p><i>Note:</i> Making changes to this configuration requires a restart of Jellyfin.</p>
+                            <p><i>Note:</i> Making changes to this configuration does not require restarting Jellyfin.</p>
                             <div
                                 class="verticalSection"
                                 title="Authelia Settings"
@@ -27,7 +27,7 @@
                                     <input
                                         is="emby-input"
                                         type="text"
-                                        id="txtAutheliaServer"
+                                        id="AutheliaServer"
                                         required
                                         placeholder="authelia"
                                         label="Authelia Server:"
@@ -41,22 +41,19 @@
                                             is="emby-textarea"
                                             class="emby-textarea"
                                             type="text"
-                                            id="txtAutheliaRootCa"
+                                            id="AutheliaRootCa"
                                             placeholder="-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
                                             rows="3"
                                         ></textarea>
                                     </label>
-                                    <div class="fieldDescription">
-                                        <div>The root CA for the Authelia server you wish to use for Authentication.</div>
-                                        <div>Leave this field empty unless you use a self-signed certificate for Authelia.</div>
-                                    </div>
+                                    <div class="fieldDescription">The root CA for the Authelia server you wish to use for Authentication. Leave this field empty unless you use a self-signed certificate for Authelia.</div>
                                 </div>
                                 <div class="checkboxContainer checkboxContainer-withDescription">
                                     <label>
                                         <input
                                             is="emby-checkbox"
                                             type="checkbox"
-                                            id="boolCreateUserIfNotExists"
+                                            id="CreateUserIfNotExists"
                                         />
                                         <span>Create a new user on successful login</span>
                                     </label>
@@ -66,7 +63,23 @@
                                     <input
                                         is="emby-input"
                                         type="text"
-                                        id="txtJellyfinUrl"
+                                        id="AutheliaAdminGroup"
+                                        label="Authelia admin group name:"
+                                    />
+                                    <div class="fieldDescription">
+                                        <p>If not blank, this plugin will actively manage users administrator permissions in Jellyfin. On every successful log in this plugin will check if a user is a member of this group in Authelia:</p>
+                                        <ul>
+                                            <li>If a user is a member of this group, they will be given administrator permissions in Jellyfin.</li>
+                                            <li>If a user is not a member of this group, the administrator permission will be revoked in Jellyfin.</li>
+                                            <li>If left blank, this plugin will not alter administrator permissions in Jellyfin.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="inputContainer">
+                                    <input
+                                        is="emby-input"
+                                        type="text"
+                                        id="JellyfinUrl"
                                         required
                                         placeholder="jellyfin"
                                         label="Jellyfin Url:"
@@ -118,15 +131,19 @@
                 .emby-textarea + .fieldDescription {
                     margin-top: 0.25em;
                 }
+                .fieldDescription > p {
+                    margin-top: 0;
+                }
             </style>
 
             <script type="text/javascript">
                 var AutheliaConfigurationPage = {
                     pluginUniqueId: "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091",
-                    AutheliaServer: document.querySelector("#txtAutheliaServer"),
-                    AutheliaRootCa: document.querySelector("#txtAutheliaRootCa"),
-                    CreateUserIfNotExists: document.querySelector("#boolCreateUserIfNotExists"),
-                    JellyfinUrl: document.querySelector("#txtJellyfinUrl"),
+                    AutheliaServer: document.querySelector("#AutheliaServer"),
+                    AutheliaRootCa: document.querySelector("#AutheliaRootCa"),
+                    CreateUserIfNotExists: document.querySelector("#CreateUserIfNotExists"),
+                    AutheliaAdminGroup: document.querySelector("#AutheliaAdminGroup"),
+                    JellyfinUrl: document.querySelector("#JellyfinUrl"),
                 };
 
                 document.querySelector(".esqConfigurationPage").addEventListener("pageshow", function () {
@@ -134,6 +151,7 @@
                         AutheliaConfigurationPage.AutheliaServer.value = config.AutheliaServer;
                         AutheliaConfigurationPage.AutheliaRootCa.value = config.AutheliaRootCa;
                         AutheliaConfigurationPage.CreateUserIfNotExists.checked = config.CreateUserIfNotExists;
+                        AutheliaConfigurationPage.AutheliaAdminGroup.value = config.AutheliaAdminGroup;
                         AutheliaConfigurationPage.JellyfinUrl.value = config.JellyfinUrl;
 
                         AutheliaConfigurationPage.AutheliaRootCa.placeholder = AutheliaConfigurationPage.AutheliaRootCa.placeholder.replace(/\\n/g, "\n");
@@ -145,13 +163,12 @@
                     e.preventDefault();
                     Dashboard.showLoadingMsg();
 
-                    console.log("calling api????");
                     window.ApiClient.getPluginConfiguration(AutheliaConfigurationPage.pluginUniqueId).then(function (config) {
                         config.AutheliaServer = AutheliaConfigurationPage.AutheliaServer.value;
                         config.AutheliaRootCa = AutheliaConfigurationPage.AutheliaRootCa.value;
                         config.CreateUserIfNotExists = AutheliaConfigurationPage.CreateUserIfNotExists.checked;
+                        config.AutheliaAdminGroup = AutheliaConfigurationPage.AutheliaAdminGroup.value;
                         config.JellyfinUrl = AutheliaConfigurationPage.JellyfinUrl.value;
-                        console.log("????");
                         window.ApiClient.updatePluginConfiguration(AutheliaConfigurationPage.pluginUniqueId, config).then(Dashboard.processPluginConfigurationUpdateResult);
                     });
 

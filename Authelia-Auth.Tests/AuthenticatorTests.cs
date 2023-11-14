@@ -9,12 +9,14 @@ public class AuthenticatorTests
     [Fact(Skip = "skip")]
     public async void AuthenticatorTest()
     {
-        var config = new PluginConfiguration();
-        config.JellyfinUrl = "http://jellyfin";
-        config.AutheliaServer = "http://authelia";
+        var config = new PluginConfiguration
+        {
+            JellyfinUrl = "http://jellyfin",
+            AutheliaServer = "http://authelia"
+        };
 
         var authenticator = new Authenticator();
         var result = await authenticator.Authenticate(config, "test", "test");
-        Assert.Equal("test", result.DisplayName);
+        Assert.Equal("test", result.AuthenticationResult.DisplayName);
     }
 }

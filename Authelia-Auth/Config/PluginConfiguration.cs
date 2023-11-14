@@ -15,6 +15,7 @@ namespace Jellyfin.Plugin.Authelia_Auth.Config
             AutheliaServer = "http://authelia";
             JellyfinUrl = "http://jellyfin";
             AutheliaRootCa = string.Empty;
+            AutheliaAdminGroup = string.Empty;
             CreateUserIfNotExists = true;
         }
 
@@ -27,6 +28,11 @@ namespace Jellyfin.Plugin.Authelia_Auth.Config
         /// Gets or sets the Authelia root CA certificate.
         /// </summary>
         public string AutheliaRootCa { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Authelia group name for admin users.
+        /// </summary>
+        public string AutheliaAdminGroup { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether a user will be created on successful authentication if it does not exist in Jellyfin.

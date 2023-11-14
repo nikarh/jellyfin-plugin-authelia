@@ -1,11 +1,10 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Authelia_Auth.Config;
 using MediaBrowser.Controller.Authentication;
@@ -15,27 +14,19 @@ namespace Jellyfin.Plugin.Authelia_Auth
 #pragma warning disable SA1649
 #pragma warning disable SA1402
     /// <summary>
-    /// Response data field.
+    /// AutheliaUser is ProviderAuthenticationResult enriched with group information.
     /// </summary>
-    public class UserInfoResponseData
+    public class AutheliaUser
     {
         /// <summary>
-        /// Gets users full name.
+        /// Gets ProviderAuthenticationResult.
         /// </summary>
-        [JsonPropertyName("display_name")]
-        public string DisplayName { get; init; }
-    }
+        public ProviderAuthenticationResult AuthenticationResult { get; init; }
 
-    /// <summary>
-    /// User info response.
-    /// </summary>
-    public class UserInfoResponse
-    {
         /// <summary>
-        /// Gets user info response data.
+        /// Gets a value indicating whether a user has admin privileges .
         /// </summary>
-        [JsonPropertyName("data")]
-        public UserInfoResponseData Data { get; init; }
+        public bool IsAdmin { get; init; }
     }
 #pragma warning restore SA1649
 #pragma warning restore SA1402
@@ -53,7 +44,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
         /// <param name="password">Password to authenticate.</param>
         /// <returns>A <see cref="ProviderAuthenticationResult"/> with the authentication result.</returns>
         /// <exception cref="AuthenticationException">Exception when failing to authenticate.</exception>
-        public async Task<ProviderAuthenticationResult> Authenticate(PluginConfiguration config, string username, string password)
+        public async Task<AutheliaUser> Authenticate(PluginConfiguration config, string username, string password)
         {
             var cookieContainer = new CookieContainer();
             using var handler = new HttpClientHandler()
@@ -100,21 +91,33 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 {
                     throw new AuthenticationException("User doesn't have access to this service.");
                 }
-            }
 
-            try
-            {
-                var userInfoResponse = await client.GetFromJsonAsync<UserInfoResponse>("/api/user/info");
+                var isAdmin = false;
+                var displayName = string.Empty;
 
-                return new ProviderAuthenticationResult
+                if (accessResponse.Headers.TryGetValues("Remote-Groups", out var groups))
                 {
-                    Username = username,
-                    DisplayName = userInfoResponse.Data.DisplayName,
+                    isAdmin = groups.FirstOrDefault().Split(",").Any(e => e == config.AutheliaAdminGroup);
+                }
+
+                if (accessResponse.Headers.TryGetValues("Remote-Name", out var names))
+                {
+                    displayName = names.First();
+                }
+                else
+                {
+                    throw new AuthenticationException("Authelia didn't return a Remote-Name header.");
+                }
+
+                return new AutheliaUser
+                {
+                    AuthenticationResult = new ProviderAuthenticationResult
+                    {
+                        Username = username,
+                        DisplayName = displayName,
+                    },
+                    IsAdmin = isAdmin
                 };
-            }
-            catch
-            {
-                throw new AuthenticationException("Invalid username or password.");
             }
         }
     }

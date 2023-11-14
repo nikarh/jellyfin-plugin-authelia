@@ -15,9 +15,8 @@ category: "Authentication"
 artifacts:
   - "Authelia-Auth.dll"
 changelog: |2-
-  ### Fixed
-  - Latest version didn't work with Jellyfin 10.8.0 
-
   ### Added
-  - A new configuration param for a custom root CA certificate
-  - A new configuration param to enable/disable user creation on login
+  - Added a new field to manage Jellyfin administrator privilege for users authorized with this plugin
+
+  ### Changed
+  - Simplified authentication by 1 HTTP call, extracting full name from `Remote-Name` header instead of an additional call to `/api/user/info`

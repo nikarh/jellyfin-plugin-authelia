@@ -2,6 +2,7 @@ using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Jellyfin.Data.Entities;
+using Jellyfin.Data.Enums;
 using MediaBrowser.Common;
 using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Library;
@@ -56,7 +57,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
             var auth = await new Authenticator().Authenticate(config, username, password);
 
-            User user = null;
+            User user;
             try
             {
                 user = userManager.GetUserByName(username);
@@ -76,7 +77,13 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 user.Password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
             }
 
-            return auth;
+            // Only manage admin permissions if the admin group is set in config
+            if (!string.IsNullOrWhiteSpace(config.AutheliaAdminGroup))
+            {
+                user.SetPermission(PermissionKind.IsAdministrator, auth.IsAdmin);
+            }
+
+            return auth.AuthenticationResult;
         }
 
         /// <inheritdoc />
