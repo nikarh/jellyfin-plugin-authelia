@@ -2,12 +2,20 @@
     {
         "guid": "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091",
         "name": "Authelia Authentication",
-        "description": "Authenticate your Jellyfin with Authelia, and optionally create users who do not yet exist automatically.\n\nThis plugin uses Authelia HTTP API for authentication. Unlike with an SSO plugin, this allows using the existing Jellyfin login UI and API, which is compatible with all existing Jellyfin clients.\nThe main drawback of this approach is that 2FA is not supported.",
+        "description": "Authenticate your Jellyfin with Authelia, and optionally create users who do not yet exist automatically.\n\nThis plugin uses Authelia HTTP API for authentication. Unlike with an SSO plugin, this allows using the existing Jellyfin login UI and API, which is compatible with all existing Jellyfin clients.\nThe main drawback of this approach is that 2FA is not supported.\n",
         "overview": "Authenticate users via Authelia",
         "owner": "nikarh",
         "category": "Authentication",
         "imageUrl": "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/master/logo.png",
         "versions": [
+            {
+                "version": "1.0.13.0",
+                "changelog": "### Added\n- Added a new field to manage Jellyfin administrator privilege for users authorized with this plugin\n\n### Changed\n- Simplified authentication by 1 HTTP call, extracting full name from `Remote-Name` header instead of an additional call to `/api/user/info`",
+                "targetAbi": "10.8.0.0",
+                "sourceUrl": "https://github.com/nikarh/jellyfin-plugin-authelia/releases/download/1.0.13/authelia-authentication_1.0.13.0.zip",
+                "checksum": "f996b7294c36b5e9f947537c22f2c52e",
+                "timestamp": "2023-11-14T10:56:12Z"
+            },
             {
                 "version": "1.0.12.0",
                 "changelog": "### Fixed\n- Latest version didn't work with Jellyfin 10.8.0 \n\n### Added\n- A new configuration param for a custom root CA certificate\n- A new configuration param to enable/disable user creation on login\n\n",
