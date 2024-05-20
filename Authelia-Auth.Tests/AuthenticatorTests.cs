@@ -1,4 +1,5 @@
 using Xunit;
+using System.Threading.Tasks;
 using Jellyfin.Plugin.Authelia_Auth.Config;
 using Jellyfin.Plugin.Authelia_Auth;
 
@@ -7,7 +8,7 @@ namespace Authelia_Auth.Tests;
 public class AuthenticatorTests
 {
     [Fact(Skip = "skip")]
-    public async void AuthenticatorTest()
+    public async Task AuthenticatorTest()
     {
         var config = new PluginConfiguration
         {
