@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/master/logo.png",
         "versions": [
             {
+                "version": "1.0.14.0",
+                "changelog": "### Changed\n- Updated for Jellyfin 10.9",
+                "targetAbi": "10.9.0.0",
+                "sourceUrl": "https://github.com/nikarh/jellyfin-plugin-authelia/releases/download/1.0.14/authelia-authentication_1.0.14.0.zip",
+                "checksum": "28d556049d578d8e3484bbb98fd517b4",
+                "timestamp": "2024-05-20T12:46:51Z"
+            },
+            {
                 "version": "1.0.13.0",
                 "changelog": "### Added\n- Added a new field to manage Jellyfin administrator privilege for users authorized with this plugin\n\n### Changed\n- Simplified authentication by 1 HTTP call, extracting full name from `Remote-Name` header instead of an additional call to `/api/user/info`",
                 "targetAbi": "10.8.0.0",
