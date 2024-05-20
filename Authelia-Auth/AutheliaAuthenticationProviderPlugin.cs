@@ -64,7 +64,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
             }
             catch (Exception e)
             {
-                _logger.LogError("User Manager could not find a user for Authelia User", e);
+                _logger.LogError("User Manager could not find a user for Authelia User. {Error}", e);
                 throw new AuthenticationException("Error completing Authelia login. Invalid username or password.");
             }
 
