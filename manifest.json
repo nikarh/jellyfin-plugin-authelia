@@ -9,6 +9,14 @@
         "imageUrl": "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/master/logo.png",
         "versions": [
             {
+                "version": "1.0.15.0",
+                "changelog": "### Changed\n- Updated for Jellyfin 10.9",
+                "targetAbi": "10.9.0.0",
+                "sourceUrl": "https://github.com/nikarh/jellyfin-plugin-authelia/releases/download/1.0.15/authelia-authentication_1.0.15.0.zip",
+                "checksum": "dfd91a1cbbd2acdc466c51c3fdcd784a",
+                "timestamp": "2024-08-09T13:35:53Z"
+            },
+            {
                 "version": "1.0.14.0",
                 "changelog": "### Changed\n- Updated for Jellyfin 10.9",
                 "targetAbi": "10.9.0.0",
