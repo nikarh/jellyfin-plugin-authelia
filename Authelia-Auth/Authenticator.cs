@@ -82,10 +82,10 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 }
             }
 
-            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/verify"))
+            using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/authz/auth-request"))
             {
-                request.Headers.Add("X-Original-Url", config.JellyfinUrl);
-                request.Headers.Add("X-Forwarded-Method", "GET");
+                request.Headers.Add("X-Original-URL", config.JellyfinUrl);
+                request.Headers.Add("X-Original-Method", "GET");
                 var accessResponse = await client.SendAsync(request);
                 if (!accessResponse.IsSuccessStatusCode)
                 {
