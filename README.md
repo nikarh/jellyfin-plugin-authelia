@@ -23,6 +23,19 @@ The plugin will automatically create a new Jellyfin user upon successful authent
 2. Install the `Authelia Authentication` plugin from the catalog
 3. Configure the plugin by entering the URL of your Authelia server (can be either private or public), and a URL of your Jellyfin installation used in the Authelia `configuration.yml` rule.
 
+## Authelia configuration
+
+This plugin uses `/api/authz/auth-request` [endpoint](https://www.authelia.com/configuration/miscellaneous/server-endpoints-authz) for authentication.
+If your Authelia `configuration.yml` file contains `server.endpoints.authz` section it [overrides](https://github.com/authelia/authelia/blob/eefd06e81b61a113269de3e38ae6ed7d096665ee/internal/configuration/validator/server.go#L122) the [defaults](https://github.com/authelia/authelia/blob/eefd06e81b61a113269de3e38ae6ed7d096665ee/internal/configuration/schema/server.go#L67), so you must explicitly enable `auth-request` endpoints:
+
+```yaml
+server:
+    endpoints:
+        authz:
+            auth-request:
+                implementation: 'AuthRequest'
+```
+
 ## License
 
 All files in this repository excluding the [Authelia logo](./logo.png) are licensed under an [MIT](./LICENSE) license.
