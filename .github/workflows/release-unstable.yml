@@ -1,0 +1,43 @@
+name: Release Unstable
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build'
+        required: true
+        default: 'unstable'
+  push:
+    branches:
+      - unstable
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build & Release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Restore nuget packages
+        run: dotnet restore Authelia-Auth/Authelia-Auth.csproj
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+      - name: Install JPRM
+        run: python -m pip install jprm
+      - name: Run JPRM
+        run: python build_plugin.py --version=${GITHUB_REF#refs/*/}
+      # Upload artifacts
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: authelia-authentication-plugin
+          path: ./artifacts/authelia-authentication*.zip
