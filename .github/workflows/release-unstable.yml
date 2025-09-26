@@ -26,7 +26,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
       - name: Restore nuget packages
-        run: dotnet restore Authelia-Auth/Authelia-Auth.csproj
+        run: dotnet restore Authelia-Auth/Authelia-Auth.csproj --locked-mode
       - name: Setup python
         uses: actions/setup-python@v5
         with:
