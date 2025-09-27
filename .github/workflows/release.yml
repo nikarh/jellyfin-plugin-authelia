@@ -19,13 +19,13 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 9.0.x
       - name: Restore nuget packages
         run: dotnet restore Authelia-Auth/Authelia-Auth.csproj
       - name: Setup python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.11
       - name: Install JPRM
         run: python -m pip install jprm
       - name: Run JPRM
