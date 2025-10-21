@@ -17,7 +17,7 @@ jobs:
         with:
           ref: main
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
       - name: Restore nuget packages
