@@ -37,7 +37,7 @@ jobs:
         run: python build_plugin.py --version=${GITHUB_REF#refs/*/}
       # Upload artifacts
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: authelia-authentication-plugin
           path: ./artifacts/authelia-authentication*.zip
