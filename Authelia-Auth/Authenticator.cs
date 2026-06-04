@@ -148,6 +148,29 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
             if (response.StatusCode == HttpStatusCode.Forbidden && IsElevationRequired(errorBody))
             {
+                var elevated = await TryElevateSessionWithPassword(client, config, oldPassword);
+                if (elevated)
+                {
+                    using var retryContent = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
+                    using var retryResponse = await client.PostAsync("/api/change-password", retryContent);
+
+                    if (retryResponse.IsSuccessStatusCode)
+                    {
+                        return;
+                    }
+
+                    if (retryResponse.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        throw new AuthenticationException(MessageInvalidCredentials);
+                    }
+
+                    var retryErrorBody = await retryResponse.Content.ReadAsStringAsync();
+                    if (retryResponse.StatusCode == HttpStatusCode.Forbidden && IsElevationRequired(retryErrorBody))
+                    {
+                        throw new PasswordChangeElevationRequiredException();
+                    }
+                }
+
                 throw new PasswordChangeElevationRequiredException();
             }
 
@@ -212,6 +235,20 @@ namespace Jellyfin.Plugin.Authelia_Auth
             }
         }
 
+        private static async Task<bool> TryElevateSessionWithPassword(HttpClient client, PluginConfiguration config, string password)
+        {
+            var jsonBody = new JsonObject
+            {
+                { "password", password },
+                { "targetURL", config.JellyfinUrl }
+            };
+
+            using var content = new StringContent(jsonBody.ToString(), Encoding.UTF8, "application/json");
+            using var response = await client.PostAsync("/api/secondfactor/password", content);
+
+            return response.IsSuccessStatusCode;
+        }
+
         private static bool IsElevationRequired(string errorBody)
         {
             if (string.IsNullOrWhiteSpace(errorBody))
@@ -244,19 +281,45 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 return false;
             }
 
-            if (elevationNode is JsonValue jsonValue)
+            if (!TryGetBoolean(dataObject, "first_factor", out var hasFirstFactor) || !hasFirstFactor)
             {
-                try
-                {
-                    return jsonValue.GetValue<bool>();
-                }
-                catch
-                {
-                    return false;
-                }
+                return false;
+            }
+
+            var hasElevation = TryGetBoolean(dataObject, "elevation", out var elevation);
+            var hasSecondFactor = TryGetBoolean(dataObject, "second_factor", out var secondFactor);
+
+            if (hasElevation && !elevation)
+            {
+                return true;
+            }
+
+            if (hasSecondFactor && !secondFactor)
+            {
+                return true;
             }
 
             return false;
+        }
+
+        private static bool TryGetBoolean(JsonObject jsonObject, string propertyName, out bool value)
+        {
+            value = false;
+
+            if (!jsonObject.TryGetPropertyValue(propertyName, out var node) || node is not JsonValue jsonValue)
+            {
+                return false;
+            }
+
+            try
+            {
+                value = jsonValue.GetValue<bool>();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }
