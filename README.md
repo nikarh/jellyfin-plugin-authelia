@@ -25,7 +25,7 @@ This fork adds best-effort support for native Jellyfin password changes for Auth
 - The plugin then calls `POST /api/change-password` on Authelia with `old_password` and `new_password`.
 - If Authelia requires an elevated session for password changes, Jellyfin shows an actionable error and users must change the password directly in the Authelia portal.
 
-Technical note: Jellyfin's `IAuthenticationProvider.ChangePassword` does not include the current password. This fork bridges this by carrying credentials only in the same request flow (request-scoped in-memory handoff), then immediately consuming them for the Authelia password-change call.
+Technical note: Jellyfin's `IAuthenticationProvider.ChangePassword` does not include the current password. This fork bridges this by carrying credentials only in the same execution flow (in-memory `AsyncLocal` handoff), then immediately consuming them for the Authelia password-change call.
 
 ## Usage
 

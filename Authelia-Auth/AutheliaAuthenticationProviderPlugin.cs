@@ -1,5 +1,6 @@
 using System;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data;
 using Jellyfin.Database.Implementations.Entities;
@@ -8,7 +9,6 @@ using MediaBrowser.Common;
 using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Cryptography;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Authelia_Auth
@@ -18,6 +18,8 @@ namespace Jellyfin.Plugin.Authelia_Auth
     /// </summary>
     public class AutheliaAuthenticationProviderPlugin : IAuthenticationProvider
     {
+        private static readonly AsyncLocal<FlowCredential> CurrentFlowCredential = new();
+
         private readonly IApplicationHost _applicationHost;
         private readonly ILogger<AutheliaAuthenticationProviderPlugin> _logger;
         private readonly ICryptoProvider _cryptoProvider;
@@ -61,7 +63,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
             var config = AutheliaPlugin.Instance.Configuration;
 
             var auth = await new Authenticator().Authenticate(config, username, password);
-            CaptureCredentialForPasswordChangeFlow(username, password);
+            CurrentFlowCredential.Value = new FlowCredential(username, password);
 
             User user;
             try
@@ -113,9 +115,9 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
             var username = user.Username;
             var config = AutheliaPlugin.Instance.Configuration;
-            var oldPassword = TakeCredentialForPasswordChangeFlow(username);
+            var flowCredential = CurrentFlowCredential.Value;
 
-            if (oldPassword == null)
+            if (flowCredential == null || !string.Equals(flowCredential.Username, username, StringComparison.OrdinalIgnoreCase))
             {
                 throw new AuthenticationException(
                     $"Unable to change password from Jellyfin because the current password was not provided "
@@ -124,9 +126,11 @@ namespace Jellyfin.Plugin.Authelia_Auth
                     + $"{BuildAutheliaPortalUrl(config.AutheliaServer)}.");
             }
 
+            CurrentFlowCredential.Value = null;
+
             try
             {
-                await new Authenticator().ChangePassword(config, username, oldPassword, newPassword);
+                await new Authenticator().ChangePassword(config, username, flowCredential.Password, newPassword);
             }
             catch (AuthenticationException ex)
             {
@@ -153,80 +157,17 @@ namespace Jellyfin.Plugin.Authelia_Auth
             return server;
         }
 
-        private void CaptureCredentialForPasswordChangeFlow(string username, string password)
+        private sealed class FlowCredential
         {
-            if (!TryGetCurrentHttpContext(out var httpContext) || !IsPasswordChangeRoute(httpContext.Request.Path.Value ?? string.Empty))
+            public FlowCredential(string username, string password)
             {
-                return;
+                Username = username;
+                Password = password;
             }
 
-            httpContext.Items[BuildFlowCredentialKey(username)] = password;
-        }
+            public string Username { get; }
 
-        private string TakeCredentialForPasswordChangeFlow(string username)
-        {
-            if (!TryGetCurrentHttpContext(out var httpContext))
-            {
-                return null;
-            }
-
-            var key = BuildFlowCredentialKey(username);
-
-            if (!httpContext.Items.TryGetValue(key, out var value) || value is not string password)
-            {
-                return null;
-            }
-
-            httpContext.Items.Remove(key);
-            return password;
-        }
-
-        private bool TryGetCurrentHttpContext(out HttpContext httpContext)
-        {
-            httpContext = null;
-
-            IHttpContextAccessor accessor;
-            try
-            {
-                accessor = _applicationHost.Resolve<IHttpContextAccessor>();
-            }
-            catch
-            {
-                return false;
-            }
-
-            httpContext = accessor?.HttpContext;
-            return httpContext != null;
-        }
-
-        private static bool IsPasswordChangeRoute(string requestPath)
-        {
-            if (string.IsNullOrWhiteSpace(requestPath))
-            {
-                return false;
-            }
-
-            var segments = requestPath
-                .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-            if (segments.Length < 2 || !segments[^1].Equals("Password", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            if (segments[^2].Equals("Users", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return segments.Length >= 3
-                && segments[^3].Equals("Users", StringComparison.OrdinalIgnoreCase)
-                && Guid.TryParse(segments[^2], out _);
-        }
-
-        private static string BuildFlowCredentialKey(string username)
-        {
-            return $"authelia-auth:password-flow:{username.ToLowerInvariant()}";
+            public string Password { get; }
         }
     }
 }
