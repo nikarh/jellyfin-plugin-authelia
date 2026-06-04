@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -13,6 +14,20 @@ namespace Jellyfin.Plugin.Authelia_Auth
 {
 #pragma warning disable SA1649
 #pragma warning disable SA1402
+    /// <summary>
+    /// Indicates Authelia requires elevation before password change.
+    /// </summary>
+    public sealed class PasswordChangeElevationRequiredException : Exception
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PasswordChangeElevationRequiredException"/> class.
+        /// </summary>
+        public PasswordChangeElevationRequiredException()
+            : base("Authelia requires an elevated session to change passwords.")
+        {
+        }
+    }
+
     /// <summary>
     /// AutheliaUser is ProviderAuthenticationResult enriched with group information.
     /// </summary>
@@ -58,7 +73,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
             {
                 request.Headers.Add("X-Original-URL", config.JellyfinUrl);
                 request.Headers.Add("X-Original-Method", "GET");
-                var accessResponse = await client.SendAsync(request);
+                using var accessResponse = await client.SendAsync(request);
                 if (!accessResponse.IsSuccessStatusCode)
                 {
                     throw new AuthenticationException("User doesn't have access to this service.");
@@ -117,7 +132,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
             };
 
             using var content = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
-            var response = await client.PostAsync("/api/change-password", content);
+            using var response = await client.PostAsync("/api/change-password", content);
 
             if (response.IsSuccessStatusCode)
             {
@@ -133,7 +148,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
             if (response.StatusCode == HttpStatusCode.Forbidden && IsElevationRequired(errorBody))
             {
-                throw new AuthenticationException("Authelia requires an elevated session to change passwords.");
+                throw new PasswordChangeElevationRequiredException();
             }
 
             throw new AuthenticationException("Authelia failed to change the password.");
@@ -144,17 +159,37 @@ namespace Jellyfin.Plugin.Authelia_Auth
             return new HttpClientHandler()
             {
                 CookieContainer = cookieContainer,
-                ServerCertificateCustomValidationCallback = (message, cert, chain, _) =>
+                ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) =>
                 {
-                    if (!string.IsNullOrWhiteSpace(config.AutheliaRootCa))
-                    {
-                        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                        chain.ChainPolicy.CustomTrustStore.ImportFromPem(config.AutheliaRootCa);
-                    }
-
-                    return chain.Build(cert);
+                    return ValidateServerCertificate(config, cert as X509Certificate2, chain, sslPolicyErrors);
                 }
             };
+        }
+
+        private static bool ValidateServerCertificate(PluginConfiguration config, X509Certificate2 cert, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            if (cert == null)
+            {
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.AutheliaRootCa))
+            {
+                return sslPolicyErrors == SslPolicyErrors.None;
+            }
+
+            using var validationChain = chain ?? new X509Chain();
+
+            validationChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            validationChain.ChainPolicy.CustomTrustStore.Clear();
+            validationChain.ChainPolicy.CustomTrustStore.ImportFromPem(config.AutheliaRootCa);
+            if (!validationChain.Build(cert))
+            {
+                return false;
+            }
+
+            var disallowedErrors = sslPolicyErrors & ~SslPolicyErrors.RemoteCertificateChainErrors;
+            return disallowedErrors == SslPolicyErrors.None;
         }
 
         private static async Task AuthenticateFirstFactor(HttpClient client, PluginConfiguration config, string username, string password)
@@ -169,7 +204,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
             };
 
             using var content = new StringContent(jsonBody.ToString(), Encoding.UTF8, "application/json");
-            var response = await client.PostAsync("/api/firstfactor", content);
+            using var response = await client.PostAsync("/api/firstfactor", content);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -194,7 +229,34 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 return false;
             }
 
-            return root?["data"]?["elevation"]?.GetValue<bool>() == true;
+            if (root is not JsonObject rootObject)
+            {
+                return false;
+            }
+
+            if (!rootObject.TryGetPropertyValue("data", out var dataNode) || dataNode is not JsonObject dataObject)
+            {
+                return false;
+            }
+
+            if (!dataObject.TryGetPropertyValue("elevation", out var elevationNode) || elevationNode is null)
+            {
+                return false;
+            }
+
+            if (elevationNode is JsonValue jsonValue)
+            {
+                try
+                {
+                    return jsonValue.GetValue<bool>();
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -119,6 +119,9 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
             if (flowCredential == null || !string.Equals(flowCredential.Username, username, StringComparison.OrdinalIgnoreCase))
             {
+                flowCredential?.Clear();
+                CurrentFlowCredential.Value = null;
+
                 throw new AuthenticationException(
                     $"Unable to change password from Jellyfin because the current password was not provided "
                     + $"in this password-change request. "
@@ -126,22 +129,20 @@ namespace Jellyfin.Plugin.Authelia_Auth
                     + $"{BuildAutheliaPortalUrl(config.AutheliaServer)}.");
             }
 
-            CurrentFlowCredential.Value = null;
-
             try
             {
-                await new Authenticator().ChangePassword(config, username, flowCredential.Password, newPassword);
+                await new Authenticator().ChangePassword(config, username, flowCredential.GetPassword(), newPassword);
             }
-            catch (AuthenticationException ex)
+            catch (PasswordChangeElevationRequiredException)
             {
-                if (ex.Message.Contains("elevated session", StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new AuthenticationException(
-                        $"Authelia requires an elevated session before changing passwords. "
-                        + $"Open {BuildAutheliaPortalUrl(config.AutheliaServer)} and change your password there.");
-                }
-
-                throw;
+                throw new AuthenticationException(
+                    $"Authelia requires an elevated session before changing passwords. "
+                    + $"Open {BuildAutheliaPortalUrl(config.AutheliaServer)} and change your password there.");
+            }
+            finally
+            {
+                flowCredential?.Clear();
+                CurrentFlowCredential.Value = null;
             }
         }
 
@@ -149,9 +150,8 @@ namespace Jellyfin.Plugin.Authelia_Auth
         {
             if (Uri.TryCreate(server, UriKind.Absolute, out var uri))
             {
-                return string.IsNullOrEmpty(uri.Authority)
-                    ? server
-                    : $"{uri.Scheme}://{uri.Authority}/";
+                var path = uri.GetLeftPart(UriPartial.Path);
+                return path.EndsWith("/", StringComparison.Ordinal) ? path : path + "/";
             }
 
             return server;
@@ -162,12 +162,26 @@ namespace Jellyfin.Plugin.Authelia_Auth
             public FlowCredential(string username, string password)
             {
                 Username = username;
-                Password = password;
+                PasswordChars = password.ToCharArray();
             }
 
             public string Username { get; }
 
-            public string Password { get; }
+            private char[] PasswordChars { get; set; }
+
+            public string GetPassword()
+            {
+                return new string(PasswordChars);
+            }
+
+            public void Clear()
+            {
+                if (PasswordChars.Length > 0)
+                {
+                    Array.Clear(PasswordChars, 0, PasswordChars.Length);
+                    PasswordChars = Array.Empty<char>();
+                }
+            }
         }
     }
 }
