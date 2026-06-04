@@ -36,6 +36,8 @@ namespace Jellyfin.Plugin.Authelia_Auth
     /// </summary>
     public class Authenticator
     {
+        private const string MessageInvalidCredentials = "Invalid username or password.";
+
         /// <summary>
         /// Authenticate user.
         /// </summary>
@@ -47,40 +49,10 @@ namespace Jellyfin.Plugin.Authelia_Auth
         public async Task<AutheliaUser> Authenticate(PluginConfiguration config, string username, string password)
         {
             var cookieContainer = new CookieContainer();
-            using var handler = new HttpClientHandler()
-            {
-                CookieContainer = cookieContainer,
-                ServerCertificateCustomValidationCallback = (message, cert, chain, _) =>
-                {
-                    if (!string.IsNullOrWhiteSpace(config.AutheliaRootCa))
-                    {
-                        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                        chain.ChainPolicy.CustomTrustStore.ImportFromPem(config.AutheliaRootCa);
-                    }
-
-                    return chain.Build(cert);
-                }
-            };
+            using var handler = CreateHandler(config, cookieContainer);
             using var client = new HttpClient(handler) { BaseAddress = new Uri(config.AutheliaServer) };
 
-            var jsonBody = new JsonObject
-                {
-                    { "username", username },
-                    { "password", password },
-                    { "targetURL", config.JellyfinUrl },
-                    { "requestMethod", "GET" },
-                    { "keepMeLoggedIn", true }
-                };
-
-            using (var content = new StringContent(jsonBody.ToString(), Encoding.UTF8, "application/json"))
-            {
-                var response = await client.PostAsync("/api/firstfactor", content);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new AuthenticationException("Invalid username or password.");
-                }
-            }
+            await AuthenticateFirstFactor(client, config, username, password);
 
             using (var request = new HttpRequestMessage(HttpMethod.Get, "/api/authz/auth-request"))
             {
@@ -119,6 +91,110 @@ namespace Jellyfin.Plugin.Authelia_Auth
                     IsAdmin = isAdmin
                 };
             }
+        }
+
+        /// <summary>
+        /// Change user password.
+        /// </summary>
+        /// <param name="config">Plugin configuration.</param>
+        /// <param name="username">Username to authenticate.</param>
+        /// <param name="oldPassword">Current password.</param>
+        /// <param name="newPassword">New password.</param>
+        /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
+        /// <exception cref="AuthenticationException">Exception when failing to change password.</exception>
+        public async Task ChangePassword(PluginConfiguration config, string username, string oldPassword, string newPassword)
+        {
+            var cookieContainer = new CookieContainer();
+            using var handler = CreateHandler(config, cookieContainer);
+            using var client = new HttpClient(handler) { BaseAddress = new Uri(config.AutheliaServer) };
+
+            await AuthenticateFirstFactor(client, config, username, oldPassword);
+
+            var payload = new JsonObject
+            {
+                { "old_password", oldPassword },
+                { "new_password", newPassword }
+            };
+
+            using var content = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
+            var response = await client.PostAsync("/api/change-password", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var errorBody = await response.Content.ReadAsStringAsync();
+
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new AuthenticationException(MessageInvalidCredentials);
+            }
+
+            if (response.StatusCode == HttpStatusCode.Forbidden && IsElevationRequired(errorBody))
+            {
+                throw new AuthenticationException("Authelia requires an elevated session to change passwords.");
+            }
+
+            throw new AuthenticationException("Authelia failed to change the password.");
+        }
+
+        private static HttpClientHandler CreateHandler(PluginConfiguration config, CookieContainer cookieContainer)
+        {
+            return new HttpClientHandler()
+            {
+                CookieContainer = cookieContainer,
+                ServerCertificateCustomValidationCallback = (message, cert, chain, _) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(config.AutheliaRootCa))
+                    {
+                        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                        chain.ChainPolicy.CustomTrustStore.ImportFromPem(config.AutheliaRootCa);
+                    }
+
+                    return chain.Build(cert);
+                }
+            };
+        }
+
+        private static async Task AuthenticateFirstFactor(HttpClient client, PluginConfiguration config, string username, string password)
+        {
+            var jsonBody = new JsonObject
+            {
+                { "username", username },
+                { "password", password },
+                { "targetURL", config.JellyfinUrl },
+                { "requestMethod", "GET" },
+                { "keepMeLoggedIn", true }
+            };
+
+            using var content = new StringContent(jsonBody.ToString(), Encoding.UTF8, "application/json");
+            var response = await client.PostAsync("/api/firstfactor", content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new AuthenticationException(MessageInvalidCredentials);
+            }
+        }
+
+        private static bool IsElevationRequired(string errorBody)
+        {
+            if (string.IsNullOrWhiteSpace(errorBody))
+            {
+                return false;
+            }
+
+            JsonNode root;
+            try
+            {
+                root = JsonNode.Parse(errorBody);
+            }
+            catch
+            {
+                return false;
+            }
+
+            return root?["data"]?["elevation"]?.GetValue<bool>() == true;
         }
     }
 }

@@ -17,6 +17,16 @@ The main drawback of this approach is that only username+password authentication
 
 The plugin will automatically create a new Jellyfin user upon successful authentication. Any valid Authelia user can log in to Jellyfin.
 
+## Password changes
+
+This fork adds best-effort support for native Jellyfin password changes for Authelia-backed users:
+
+- The user must first successfully authenticate in Jellyfin with their current password.
+- The plugin then calls `POST /api/change-password` on Authelia with `old_password` and `new_password`.
+- If Authelia requires an elevated session for password changes, Jellyfin shows an actionable error and users must change the password directly in the Authelia portal.
+
+Technical note: Jellyfin's `IAuthenticationProvider.ChangePassword` does not include the current password. This fork bridges this by carrying credentials only in the same request flow (request-scoped in-memory handoff), then immediately consuming them for the Authelia password-change call.
+
 ## Usage
 
 1. Add `https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/main/manifest.json` as a new Jellyfin plugin repository
