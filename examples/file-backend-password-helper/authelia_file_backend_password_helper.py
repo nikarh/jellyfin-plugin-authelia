@@ -213,6 +213,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self._precheck():
             return
         if self.path == "/health":
+            if not verify_bearer(self):
+                json_response(self, 403, {"status": "KO", "message": "forbidden"})
+                return
             json_response(self, 200, {"status": "OK"})
             return
         json_response(self, 404, {"status": "KO", "message": "not found"})

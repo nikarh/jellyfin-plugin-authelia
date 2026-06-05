@@ -91,7 +91,7 @@ sleep 2
 systemctl --no-pager --full status authelia-password-helper.service || true
 
 section "Health check"
-if curl -sk --max-time 10 "http://${BIND_HOST}:${PORT}/health" | grep -q '"OK"'; then
+if curl -sk --max-time 10 -H "Authorization: Bearer ${HELPER_TOKEN}" "http://${BIND_HOST}:${PORT}/health" | grep -q '"OK"'; then
   pass "Helper health endpoint is reachable locally"
 else
   fail "Helper health endpoint failed"
