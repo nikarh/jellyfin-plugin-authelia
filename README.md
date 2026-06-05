@@ -17,6 +17,60 @@ The main drawback of this approach is that only username+password authentication
 
 The plugin will automatically create a new Jellyfin user upon successful authentication. Any valid Authelia user can log in to Jellyfin.
 
+## Quick setup (easy)
+
+### 1) Install plugin in Jellyfin
+
+1. Go to **Dashboard -> Plugins -> Repositories**.
+2. Add repository URL:
+   - `https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/main/manifest.json`
+3. Open **Catalog**, install **Authelia Authentication**.
+4. Restart Jellyfin.
+
+### 2) Configure plugin
+
+Go to **Dashboard -> Plugins -> My Plugins -> Authelia Authentication** and fill:
+
+- **Authelia Server**: your Authelia base URL, e.g. `https://auth.example.com`
+- **Jellyfin Url**: the public URL users use for Jellyfin, e.g. `https://jellyfin-app.example.com`
+- **Create a new user on successful login**: usually `enabled`
+- **Authelia admin group name** (optional): e.g. `jellyfin-admins`
+
+Then click **Save**.
+
+> Note: this plugin does **not** use an Authelia API key.
+> Authentication is done with each user's own username/password via Authelia HTTP endpoints.
+
+### 3) Configure Authelia access rules
+
+Make sure your Jellyfin app domain is allowed in Authelia access control, for example:
+
+```yaml
+access_control:
+  rules:
+    - domain: jellyfin-app.example.com
+      policy: one_factor
+      subject:
+        - group:jellyfin-users
+```
+
+If you define `server.endpoints.authz`, ensure `auth-request` remains enabled:
+
+```yaml
+server:
+  endpoints:
+    authz:
+      auth-request:
+        implementation: 'AuthRequest'
+```
+
+### 4) Test login
+
+Open Jellyfin, log in with an Authelia user that matches your access rule.
+
+- If user auto-create is enabled, first successful login creates the Jellyfin user.
+- If login fails with `403` in Authelia logs, usually the access-control rule (domain/subject/policy) is the cause.
+
 ## Password changes
 
 This fork adds support for native Jellyfin password changes for Authelia-backed users.
@@ -53,6 +107,17 @@ The plugin will:
 - Passwords are transmitted to Authelia in JSON request bodies (`old_password`, `new_password`) as required by Authelia API.
 - **Use HTTPS between Jellyfin and Authelia.** If `http://` is used on a shared network segment, credentials can be intercepted in transit.
 - Avoid debug logging of raw credentials in reverse proxies, middleware, or packet captures.
+
+### Password-change UX note
+
+When Authelia requires elevation, Jellyfin currently has no dedicated OTC input field.
+Use the **Current Password** field format:
+
+`currentPassword::otc=YOURCODE`
+
+Example:
+
+`MyCurrentSecret123::otc=AB12CD34`
 
 ## Usage
 
