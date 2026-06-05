@@ -129,6 +129,12 @@ namespace Jellyfin.Plugin.Authelia_Auth
         /// <exception cref="AuthenticationException">Exception when failing to change password.</exception>
         public async Task ChangePassword(PluginConfiguration config, string username, string oldPassword, string newPassword, string oneTimeCode = null)
         {
+            if (!string.IsNullOrWhiteSpace(config.PasswordChangeHelperUrl))
+            {
+                await ChangePasswordWithHelper(config, username, oldPassword, newPassword);
+                return;
+            }
+
             var cookieContainer = new CookieContainer();
             using var handler = CreateHandler(config, cookieContainer);
             using var client = new HttpClient(handler) { BaseAddress = new Uri(config.AutheliaServer) };
@@ -306,6 +312,41 @@ namespace Jellyfin.Plugin.Authelia_Auth
             using var response = await client.PutAsync("/api/user/session/elevation", content);
 
             return response.IsSuccessStatusCode;
+        }
+
+        private static async Task ChangePasswordWithHelper(PluginConfiguration config, string username, string oldPassword, string newPassword)
+        {
+            var cookieContainer = new CookieContainer();
+            using var handler = CreateHandler(config, cookieContainer);
+            using var client = new HttpClient(handler) { BaseAddress = new Uri(config.PasswordChangeHelperUrl) };
+
+            if (!string.IsNullOrWhiteSpace(config.PasswordChangeHelperToken))
+            {
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", config.PasswordChangeHelperToken);
+            }
+
+            var payload = new JsonObject
+            {
+                { "username", username },
+                { "old_password", oldPassword },
+                { "new_password", newPassword }
+            };
+
+            using var content = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
+            using var response = await client.PostAsync("/change-password", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var errorBody = await response.Content.ReadAsStringAsync();
+            if (response.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                throw new AuthenticationException(MessageInvalidCredentials);
+            }
+
+            throw new AuthenticationException($"Password change helper failed (HTTP {(int)response.StatusCode}): {TruncateForMessage(errorBody)}");
         }
 
         private static async Task<bool> TryStartElevationCodeFlow(HttpClient client)

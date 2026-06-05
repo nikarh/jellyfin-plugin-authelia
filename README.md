@@ -109,6 +109,23 @@ The plugin will:
 - 2FA login itself is still not supported by this plugin (same as upstream design).
 - A fully user-friendly password-change UX likely requires changes in Jellyfin Web or directing users to Authelia's own portal.
 
+### Optional file-backend helper workaround
+
+For homelab setups using Authelia's file backend without deliverable user email, this fork also supports an optional external password-change helper URL.
+The helper is **not** part of Authelia and should be treated as a privileged workaround:
+
+1. Jellyfin still verifies the user's current password through the normal plugin flow.
+2. The plugin sends username/current/new password to the configured helper.
+3. The helper verifies the current password against Authelia, updates `users_database.yml`, and restarts Authelia.
+
+Security requirements:
+
+- bind the helper to a private address only
+- protect it with a strong bearer token
+- firewall it so only Jellyfin can reach it
+- never expose it to the Internet
+- only use it with Authelia file backend setups you administer
+
 ### Security considerations
 
 - Passwords are transmitted to Authelia in JSON request bodies (`old_password`, `new_password`) as required by Authelia API.

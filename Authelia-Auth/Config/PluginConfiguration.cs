@@ -16,6 +16,8 @@ namespace Jellyfin.Plugin.Authelia_Auth.Config
             JellyfinUrl = "http://jellyfin";
             AutheliaRootCa = string.Empty;
             AutheliaAdminGroup = string.Empty;
+            PasswordChangeHelperUrl = string.Empty;
+            PasswordChangeHelperToken = string.Empty;
             CreateUserIfNotExists = true;
         }
 
@@ -43,5 +45,15 @@ namespace Jellyfin.Plugin.Authelia_Auth.Config
         /// Gets or sets the jellyfin URL.
         /// </summary>
         public string JellyfinUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets the optional password change helper URL.
+        /// </summary>
+        public string PasswordChangeHelperUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets the optional password change helper bearer token.
+        /// </summary>
+        public string PasswordChangeHelperToken { get; set; }
     }
 }
