@@ -85,7 +85,8 @@ chmod 0644 "$SERVICE_FILE"
 
 section "Enable service"
 systemctl daemon-reload
-systemctl enable --now authelia-password-helper.service
+systemctl enable authelia-password-helper.service
+systemctl restart authelia-password-helper.service
 sleep 2
 systemctl --no-pager --full status authelia-password-helper.service || true
 
