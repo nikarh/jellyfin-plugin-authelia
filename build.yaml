@@ -17,6 +17,7 @@ artifacts:
 changelog: |2-
   ### Added
   - Best-effort password change support via Authelia `/api/change-password`
+  - Elevation retry support with one-time code via `currentPassword::otc=YOURCODE`
   - Dynamic fallback message to Authelia portal when elevated session is required
 
   ### Changed

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Jellyfin.Data;
@@ -60,8 +61,19 @@ namespace Jellyfin.Plugin.Authelia_Auth
             var userManager = _applicationHost.Resolve<IUserManager>();
             var config = AutheliaPlugin.Instance.Configuration;
 
-            var auth = await new Authenticator().Authenticate(config, username, password);
-            CaptureCredentialForPasswordChangeFlow(username, password);
+            FlowCredential flowCredential = null;
+            var passwordForAuthentication = password;
+            if (TryGetCurrentHttpContext(out var httpContext) && IsPasswordChangeRoute(httpContext.Request.Path.Value ?? string.Empty))
+            {
+                ParsePasswordFlowInput(username, password, out passwordForAuthentication, out flowCredential);
+            }
+
+            var auth = await new Authenticator().Authenticate(config, username, passwordForAuthentication);
+
+            if (flowCredential != null)
+            {
+                CaptureCredentialForPasswordChangeFlow(username, flowCredential);
+            }
 
             User user;
             try
@@ -126,13 +138,18 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
             try
             {
-                await new Authenticator().ChangePassword(config, username, flowCredential.GetPassword(), newPassword);
+                await new Authenticator().ChangePassword(
+                    config,
+                    username,
+                    flowCredential.GetPassword(),
+                    newPassword,
+                    flowCredential.GetOneTimeCode());
             }
             catch (PasswordChangeElevationRequiredException)
             {
                 throw new AuthenticationException(
                     $"Authelia requires an elevated session before changing passwords. "
-                    + $"Open {BuildAutheliaPortalUrl(config.AutheliaServer)} and change your password there.");
+                    + $"Open {BuildAutheliaPortalUrl(config.AutheliaServer)}, request an elevation code, and retry here with current password format: currentPassword::otc=YOURCODE.");
             }
             finally
             {
@@ -151,10 +168,45 @@ namespace Jellyfin.Plugin.Authelia_Auth
             return server;
         }
 
-        private void CaptureCredentialForPasswordChangeFlow(string username, string password)
+        private static void ParsePasswordFlowInput(string username, string passwordInput, out string password, out FlowCredential credential)
+        {
+            password = passwordInput;
+            credential = null;
+
+            if (string.IsNullOrEmpty(passwordInput))
+            {
+                return;
+            }
+
+            const string marker = "::otc=";
+            var markerIndex = passwordInput.LastIndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (markerIndex <= 0)
+            {
+                credential = new FlowCredential(username, passwordInput, null);
+                return;
+            }
+
+            var rawPassword = passwordInput[..markerIndex];
+            var rawOneTimeCode = passwordInput[(markerIndex + marker.Length)..].Trim();
+
+            if (string.IsNullOrWhiteSpace(rawPassword)
+                || string.IsNullOrWhiteSpace(rawOneTimeCode)
+                || rawOneTimeCode.Length > 32
+                || !rawOneTimeCode.All(char.IsLetterOrDigit))
+            {
+                credential = new FlowCredential(username, passwordInput, null);
+                return;
+            }
+
+            password = rawPassword;
+            credential = new FlowCredential(username, rawPassword, rawOneTimeCode.ToUpperInvariant());
+        }
+
+        private void CaptureCredentialForPasswordChangeFlow(string username, FlowCredential newCredential)
         {
             if (!TryGetCurrentHttpContext(out var httpContext) || !IsPasswordChangeRoute(httpContext.Request.Path.Value ?? string.Empty))
             {
+                newCredential?.Clear();
                 return;
             }
 
@@ -164,7 +216,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 existingCredential.Clear();
             }
 
-            httpContext.Items[key] = new FlowCredential(username, password);
+            httpContext.Items[key] = newCredential;
         }
 
         private FlowCredential TakeCredentialForPasswordChangeFlow(string username)
@@ -242,19 +294,27 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
         private sealed class FlowCredential
         {
-            public FlowCredential(string username, string password)
+            public FlowCredential(string username, string password, string oneTimeCode)
             {
                 Username = username;
                 PasswordChars = password.ToCharArray();
+                OneTimeCodeChars = string.IsNullOrWhiteSpace(oneTimeCode) ? Array.Empty<char>() : oneTimeCode.ToCharArray();
             }
 
             public string Username { get; }
 
             private char[] PasswordChars { get; set; }
 
+            private char[] OneTimeCodeChars { get; set; }
+
             public string GetPassword()
             {
                 return new string(PasswordChars);
+            }
+
+            public string GetOneTimeCode()
+            {
+                return OneTimeCodeChars.Length == 0 ? null : new string(OneTimeCodeChars);
             }
 
             public void Clear()
@@ -263,6 +323,12 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 {
                     Array.Clear(PasswordChars, 0, PasswordChars.Length);
                     PasswordChars = Array.Empty<char>();
+                }
+
+                if (OneTimeCodeChars.Length > 0)
+                {
+                    Array.Clear(OneTimeCodeChars, 0, OneTimeCodeChars.Length);
+                    OneTimeCodeChars = Array.Empty<char>();
                 }
             }
         }

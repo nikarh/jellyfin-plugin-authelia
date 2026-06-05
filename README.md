@@ -19,13 +19,40 @@ The plugin will automatically create a new Jellyfin user upon successful authent
 
 ## Password changes
 
-This fork adds best-effort support for native Jellyfin password changes for Authelia-backed users:
+This fork adds support for native Jellyfin password changes for Authelia-backed users.
 
-- The user must first successfully authenticate in Jellyfin with their current password.
-- The plugin then calls `POST /api/change-password` on Authelia with `old_password` and `new_password`.
-- If Authelia requires an elevated session for password changes, Jellyfin shows an actionable error and users must change the password directly in the Authelia portal.
+### Jellyfin <-> Authelia flow
 
-Technical note: Jellyfin's `IAuthenticationProvider.ChangePassword` does not include the current password. This fork bridges this by carrying credentials only in the same execution flow (in-memory `AsyncLocal` handoff), then immediately consuming them for the Authelia password-change call.
+1. Jellyfin validates `CurrentPw` by calling plugin `Authenticate(username, currentPassword)`.
+2. In that same request flow, the plugin captures request-scoped credentials (in-memory only).
+3. Jellyfin then calls plugin `ChangePassword(user, newPassword)`.
+4. Plugin reuses the captured current password and calls Authelia:
+   - `POST /api/firstfactor`
+   - `POST /api/change-password` with `old_password` + `new_password`
+5. If Authelia requires elevation, plugin starts elevation challenge and asks user to retry with one-time code.
+
+### Elevation one-time code retry
+
+When Authelia requires elevated session, retry password change in Jellyfin with this format in the **Current Password** field:
+
+`currentPassword::otc=YOURCODE`
+
+The plugin will:
+- split `currentPassword` and `otc`
+- call `PUT /api/user/session/elevation` with `{"otc":"YOURCODE"}`
+- retry `POST /api/change-password`
+
+### Important limitations
+
+- Jellyfin API does not expose a separate OTC field; this fork uses `::otc=` marker in the current password field.
+- Credentials and OTC are request-scoped and ephemeral (not persisted intentionally).
+- 2FA login itself is still not supported by this plugin (same as upstream design).
+
+### Security considerations
+
+- Passwords are transmitted to Authelia in JSON request bodies (`old_password`, `new_password`) as required by Authelia API.
+- **Use HTTPS between Jellyfin and Authelia.** If `http://` is used on a shared network segment, credentials can be intercepted in transit.
+- Avoid debug logging of raw credentials in reverse proxies, middleware, or packet captures.
 
 ## Usage
 

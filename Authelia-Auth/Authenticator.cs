@@ -26,6 +26,15 @@ namespace Jellyfin.Plugin.Authelia_Auth
             : base("Authelia requires an elevated session to change passwords.")
         {
         }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PasswordChangeElevationRequiredException"/> class.
+        /// </summary>
+        /// <param name="message">Exception message.</param>
+        public PasswordChangeElevationRequiredException(string message)
+            : base(message)
+        {
+        }
     }
 
     /// <summary>
@@ -115,9 +124,10 @@ namespace Jellyfin.Plugin.Authelia_Auth
         /// <param name="username">Username to authenticate.</param>
         /// <param name="oldPassword">Current password.</param>
         /// <param name="newPassword">New password.</param>
+        /// <param name="oneTimeCode">Optional one-time code from Authelia elevation flow.</param>
         /// <returns>A <see cref="Task"/> representing asynchronous operation.</returns>
         /// <exception cref="AuthenticationException">Exception when failing to change password.</exception>
-        public async Task ChangePassword(PluginConfiguration config, string username, string oldPassword, string newPassword)
+        public async Task ChangePassword(PluginConfiguration config, string username, string oldPassword, string newPassword, string oneTimeCode = null)
         {
             var cookieContainer = new CookieContainer();
             using var handler = CreateHandler(config, cookieContainer);
@@ -148,6 +158,47 @@ namespace Jellyfin.Plugin.Authelia_Auth
 
             if (response.StatusCode == HttpStatusCode.Forbidden && IsElevationRequired(errorBody))
             {
+                var hasOneTimeCode = !string.IsNullOrWhiteSpace(oneTimeCode);
+
+                var elevatedByOneTimeCode = await TryElevateSessionWithOneTimeCode(client, oneTimeCode);
+                if (elevatedByOneTimeCode)
+                {
+                    using var retryContent = new StringContent(payload.ToString(), Encoding.UTF8, "application/json");
+                    using var retryResponse = await client.PostAsync("/api/change-password", retryContent);
+
+                    if (retryResponse.IsSuccessStatusCode)
+                    {
+                        return;
+                    }
+
+                    if (retryResponse.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        throw new AuthenticationException(MessageInvalidCredentials);
+                    }
+
+                    var retryErrorBody = await retryResponse.Content.ReadAsStringAsync();
+                    if (retryResponse.StatusCode == HttpStatusCode.Forbidden && IsElevationRequired(retryErrorBody))
+                    {
+                        throw new PasswordChangeElevationRequiredException(
+                            "Authelia elevation code was accepted, but password change still requires elevation. Request a new code and retry.");
+                    }
+
+                    throw new AuthenticationException($"Authelia failed to change the password after one-time code elevation attempt (HTTP {(int)retryResponse.StatusCode}): {TruncateForMessage(retryErrorBody)}");
+                }
+
+                if (hasOneTimeCode)
+                {
+                    throw new PasswordChangeElevationRequiredException(
+                        "The provided Authelia elevation code was invalid or expired. Request a new code and retry with currentPassword::otc=YOURCODE.");
+                }
+
+                var elevationCodeRequested = await TryStartElevationCodeFlow(client);
+                if (elevationCodeRequested)
+                {
+                    throw new PasswordChangeElevationRequiredException(
+                        "Authelia requires elevation before password change. A one-time code request was created. Check your email and retry with currentPassword::otc=YOURCODE.");
+                }
+
                 var elevated = await TryElevateSessionWithPassword(client, config, oldPassword);
                 if (elevated)
                 {
@@ -167,14 +218,18 @@ namespace Jellyfin.Plugin.Authelia_Auth
                     var retryErrorBody = await retryResponse.Content.ReadAsStringAsync();
                     if (retryResponse.StatusCode == HttpStatusCode.Forbidden && IsElevationRequired(retryErrorBody))
                     {
-                        throw new PasswordChangeElevationRequiredException();
+                        throw new PasswordChangeElevationRequiredException(
+                            "Authelia requires elevation before password change. Request a code in the Authelia portal and retry with currentPassword::otc=YOURCODE.");
                     }
+
+                    throw new AuthenticationException($"Authelia failed to change the password after elevation attempt (HTTP {(int)retryResponse.StatusCode}): {TruncateForMessage(retryErrorBody)}");
                 }
 
-                throw new PasswordChangeElevationRequiredException();
+                throw new PasswordChangeElevationRequiredException(
+                    "Authelia requires elevation before password change. Request a code in the Authelia portal and retry with currentPassword::otc=YOURCODE.");
             }
 
-            throw new AuthenticationException("Authelia failed to change the password.");
+            throw new AuthenticationException($"Authelia failed to change the password (HTTP {(int)response.StatusCode}): {TruncateForMessage(errorBody)}");
         }
 
         private static HttpClientHandler CreateHandler(PluginConfiguration config, CookieContainer cookieContainer)
@@ -235,6 +290,32 @@ namespace Jellyfin.Plugin.Authelia_Auth
             }
         }
 
+        private static async Task<bool> TryElevateSessionWithOneTimeCode(HttpClient client, string oneTimeCode)
+        {
+            if (string.IsNullOrWhiteSpace(oneTimeCode))
+            {
+                return false;
+            }
+
+            var jsonBody = new JsonObject
+            {
+                { "otc", oneTimeCode.Trim().ToUpperInvariant() }
+            };
+
+            using var content = new StringContent(jsonBody.ToString(), Encoding.UTF8, "application/json");
+            using var response = await client.PutAsync("/api/user/session/elevation", content);
+
+            return response.IsSuccessStatusCode;
+        }
+
+        private static async Task<bool> TryStartElevationCodeFlow(HttpClient client)
+        {
+            using var content = new StringContent("{}", Encoding.UTF8, "application/json");
+            using var response = await client.PostAsync("/api/user/session/elevation", content);
+
+            return response.IsSuccessStatusCode;
+        }
+
         private static async Task<bool> TryElevateSessionWithPassword(HttpClient client, PluginConfiguration config, string password)
         {
             var jsonBody = new JsonObject
@@ -281,15 +362,21 @@ namespace Jellyfin.Plugin.Authelia_Auth
                 return false;
             }
 
-            if (!TryGetBoolean(dataObject, "first_factor", out var hasFirstFactor) || !hasFirstFactor)
-            {
-                return false;
-            }
-
             var hasElevation = TryGetBoolean(dataObject, "elevation", out var elevation);
             var hasSecondFactor = TryGetBoolean(dataObject, "second_factor", out var secondFactor);
+            var hasFirstFactor = TryGetBoolean(dataObject, "first_factor", out var firstFactor);
 
             if (hasElevation && !elevation)
+            {
+                return true;
+            }
+
+            if (hasElevation && elevation)
+            {
+                return true;
+            }
+
+            if (hasFirstFactor && !firstFactor)
             {
                 return true;
             }
@@ -320,6 +407,18 @@ namespace Jellyfin.Plugin.Authelia_Auth
             {
                 return false;
             }
+        }
+
+        private static string TruncateForMessage(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return "<empty>";
+            }
+
+            var trimmed = content.Trim();
+            const int maxLength = 280;
+            return trimmed.Length <= maxLength ? trimmed : trimmed.Substring(0, maxLength) + "...";
         }
     }
 }
