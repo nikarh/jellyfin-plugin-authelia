@@ -73,7 +73,11 @@ Open Jellyfin, log in with an Authelia user that matches your access rule.
 
 ## Password changes
 
-This fork adds support for native Jellyfin password changes for Authelia-backed users.
+This fork contains experimental support for native Jellyfin password changes for Authelia-backed users.
+
+> Important: Authelia protects password changes with **Elevated Session** identity validation.
+> For users who have not completed a second factor in Authelia, this usually means Authelia sends a One-Time Code to the user's configured email address.
+> If your users have placeholder emails (for example `user@example.com`) or no working notifier, native Jellyfin password changes will not be user-friendly.
 
 ### Jellyfin <-> Authelia flow
 
@@ -87,7 +91,8 @@ This fork adds support for native Jellyfin password changes for Authelia-backed 
 
 ### Elevation one-time code retry
 
-When Authelia requires elevated session, retry password change in Jellyfin with this format in the **Current Password** field:
+When Authelia requires elevated session, Authelia sends a One-Time Code to the user's configured email address.
+Retry password change in Jellyfin with this format in the **Current Password** field:
 
 `currentPassword::otc=YOURCODE`
 
@@ -98,9 +103,11 @@ The plugin will:
 
 ### Important limitations
 
+- 1FA-only users generally still need email One-Time Code elevation for password changes; their normal password alone is not enough.
 - Jellyfin API does not expose a separate OTC field; this fork uses `::otc=` marker in the current password field.
 - Credentials and OTC are request-scoped and ephemeral (not persisted intentionally).
 - 2FA login itself is still not supported by this plugin (same as upstream design).
+- A fully user-friendly password-change UX likely requires changes in Jellyfin Web or directing users to Authelia's own portal.
 
 ### Security considerations
 
