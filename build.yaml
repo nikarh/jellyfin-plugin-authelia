@@ -1,7 +1,7 @@
 name: "Authelia Authentication"
 guid: "6bb8dbba-2aaa-4b19-9da4-f3bbb6c44091"
 imageUrl: "https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/master/logo.png"
-version: "16"
+version: "17"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 owner: "nikarh"
@@ -15,5 +15,10 @@ category: "Administration"
 artifacts:
   - "Authelia-Auth.dll"
 changelog: |2-
+  ### Added
+  - Best-effort password change support via Authelia `/api/change-password`
+  - Elevation retry support with one-time code via `currentPassword::otc=YOURCODE`
+  - Dynamic fallback message to Authelia portal when elevated session is required
+
   ### Changed
-  - Updated for Jellyfin 10.11
+  - Refactored authentication HTTP flow for reuse between login and password change

@@ -86,6 +86,24 @@
                                     />
                                     <div class="fieldDescription">The external url of jellyfin used by Authelia for authentication rules.</div>
                                 </div>
+                                <div class="inputContainer">
+                                    <input
+                                        is="emby-input"
+                                        type="text"
+                                        id="PasswordChangeHelperUrl"
+                                        label="Password change helper URL (optional):"
+                                    />
+                                    <div class="fieldDescription">Optional homelab/file-backend helper endpoint, for example http://192.168.20.4:9944. Leave empty to use Authelia's native password-change API.</div>
+                                </div>
+                                <div class="inputContainer">
+                                    <input
+                                        is="emby-input"
+                                        type="password"
+                                        id="PasswordChangeHelperToken"
+                                        label="Password change helper bearer token (optional):"
+                                    />
+                                    <div class="fieldDescription">Shared secret for the optional password change helper. Required if the helper enforces bearer authentication.</div>
+                                </div>
                             </div>
                         </div>
                         <div>
@@ -144,6 +162,8 @@
                     CreateUserIfNotExists: document.querySelector("#CreateUserIfNotExists"),
                     AutheliaAdminGroup: document.querySelector("#AutheliaAdminGroup"),
                     JellyfinUrl: document.querySelector("#JellyfinUrl"),
+                    PasswordChangeHelperUrl: document.querySelector("#PasswordChangeHelperUrl"),
+                    PasswordChangeHelperToken: document.querySelector("#PasswordChangeHelperToken"),
                 };
 
                 document.querySelector(".esqConfigurationPage").addEventListener("pageshow", function () {
@@ -153,6 +173,8 @@
                         AutheliaConfigurationPage.CreateUserIfNotExists.checked = config.CreateUserIfNotExists;
                         AutheliaConfigurationPage.AutheliaAdminGroup.value = config.AutheliaAdminGroup;
                         AutheliaConfigurationPage.JellyfinUrl.value = config.JellyfinUrl;
+                        AutheliaConfigurationPage.PasswordChangeHelperUrl.value = config.PasswordChangeHelperUrl || "";
+                        AutheliaConfigurationPage.PasswordChangeHelperToken.value = config.PasswordChangeHelperToken || "";
 
                         AutheliaConfigurationPage.AutheliaRootCa.placeholder = AutheliaConfigurationPage.AutheliaRootCa.placeholder.replace(/\\n/g, "\n");
                     });
@@ -169,6 +191,8 @@
                         config.CreateUserIfNotExists = AutheliaConfigurationPage.CreateUserIfNotExists.checked;
                         config.AutheliaAdminGroup = AutheliaConfigurationPage.AutheliaAdminGroup.value;
                         config.JellyfinUrl = AutheliaConfigurationPage.JellyfinUrl.value;
+                        config.PasswordChangeHelperUrl = AutheliaConfigurationPage.PasswordChangeHelperUrl.value;
+                        config.PasswordChangeHelperToken = AutheliaConfigurationPage.PasswordChangeHelperToken.value;
                         window.ApiClient.updatePluginConfiguration(AutheliaConfigurationPage.pluginUniqueId, config).then(Dashboard.processPluginConfigurationUpdateResult);
                     });
 
