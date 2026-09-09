@@ -19,6 +19,7 @@
                                 <h2 class="sectionTitle">Authelia Settings:</h2>
                             </div>
                             <p><i>Note:</i> This plugin does not support 2FA. If your Authelia configuration requires 2FA, with this plugin it will be possible to log in to Jellyfin without 2FA. If you need 2FA support, consider using <a href="https://github.com/9p4/jellyfin-plugin-sso">Jellyfin SSO Plugin</a> instead.</p>
+                            <p><i>Note:</i> Jellyfin 12 treats usernames as case-insensitive (<code>Alice</code> and <code>alice</code> are the same account), but Authelia does not. The first login must therefore use the exact casing Authelia expects; afterwards this plugin authenticates using the username as stored in Jellyfin, so logins as <code>TEST</code>, <code>Test</code> or <code>test</code> all reach Authelia as <code>test</code>. A Jellyfin user's name is the Authelia identity it logs in as, so renaming one re-points it at the Authelia user of that name. Two Authelia users that differ only by case cannot have separate Jellyfin accounts.</p>
                             <div
                                 class="verticalSection"
                                 title="Authelia Settings"

@@ -15,7 +15,7 @@ namespace Jellyfin.Plugin.Authelia_Auth
     /// <summary>
     /// Authelia Authentication Provider Plugin.
     /// </summary>
-    public class AutheliaAuthenticationProviderPlugin : IAuthenticationProvider
+    public class AutheliaAuthenticationProviderPlugin : IAuthenticationProvider, IRequiresResolvedUser
     {
         private readonly IApplicationHost _applicationHost;
         private readonly ILogger<AutheliaAuthenticationProviderPlugin> _logger;
@@ -51,46 +51,74 @@ namespace Jellyfin.Plugin.Authelia_Auth
         /// <param name="password">Password to authenticate.</param>
         /// <returns>A <see cref="ProviderAuthenticationResult"/> with the authentication result.</returns>
         /// <exception cref="AuthenticationException">Exception when failing to authenticate.</exception>
-        public async Task<ProviderAuthenticationResult> Authenticate(string username, string password)
+        public Task<ProviderAuthenticationResult> Authenticate(string username, string password)
+        {
+            return Authenticate(username, password, null);
+        }
+
+        /// <inheritdoc />
+        public async Task<ProviderAuthenticationResult> Authenticate(string username, string password, User resolvedUser)
         {
             var userManager = _applicationHost.Resolve<IUserManager>();
             var config = AutheliaPlugin.Instance.Configuration;
 
-            var auth = await new Authenticator().Authenticate(config, username, password);
-
-            User user;
-            try
+            // Jellyfin 12+ resolves users case-insensitively and may already have the matching account.
+            var user = resolvedUser;
+            if (user == null)
             {
-                user = userManager.GetUserByName(username);
-            }
-            catch (Exception e)
-            {
-                _logger.LogError("User Manager could not find a user for Authelia User. {Error}", e);
-                throw new AuthenticationException("Error completing Authelia login. Invalid username or password.");
+                try
+                {
+                    user = userManager.GetUserByName(username);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError("User Manager could not find a user for Authelia User. {Error}", e);
+                    throw new AuthenticationException("Error completing Authelia login. Invalid username or password.");
+                }
             }
 
+            // Jellyfin stores the username with the casing it was created with, which is the
+            // casing Authelia accepted. Authelia is case-sensitive, so prefer it over what was typed.
+            var autheliaUsername = user?.Username ?? username;
+
+            if (!string.Equals(autheliaUsername, username, StringComparison.Ordinal))
+            {
+                _logger.LogInformation(
+                    "Signing in {EnteredUsername} as existing Authelia user {AutheliaUsername}.",
+                    username,
+                    autheliaUsername);
+            }
+
+            var auth = await new Authenticator().Authenticate(config, autheliaUsername, password).ConfigureAwait(false);
+
+            var userNeedsUpdate = false;
             if (config.CreateUserIfNotExists && user == null)
             {
                 _logger.LogInformation("Authelia user doesn't exist, creating...");
-                user = await userManager.CreateUserAsync(username).ConfigureAwait(false);
+                user = await userManager.CreateUserAsync(autheliaUsername).ConfigureAwait(false);
 
                 user.AuthenticationProviderId = GetType().FullName;
                 user.Password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
+                userNeedsUpdate = true;
             }
 
             // Only manage admin permissions if the admin group is set in config
-            if (!string.IsNullOrWhiteSpace(config.AutheliaAdminGroup))
+            if (user != null && !string.IsNullOrWhiteSpace(config.AutheliaAdminGroup))
             {
-                user.SetPermission(PermissionKind.IsAdministrator, auth.IsAdmin);
+                var isJellyfinAdmin = user.HasPermission(PermissionKind.IsAdministrator);
+                if (isJellyfinAdmin != auth.IsAdmin)
+                {
+                    user.SetPermission(PermissionKind.IsAdministrator, auth.IsAdmin);
+                    userNeedsUpdate = true;
+                }
+            }
+
+            if (user != null && userNeedsUpdate)
+            {
+                await userManager.UpdateUserAsync(user).ConfigureAwait(false);
             }
 
             return auth.AuthenticationResult;
-        }
-
-        /// <inheritdoc />
-        public bool HasPassword(User user)
-        {
-            return true;
         }
 
         /// <inheritdoc />
