@@ -17,6 +17,19 @@ The main drawback of this approach is that only username+password authentication
 
 The plugin will automatically create a new Jellyfin user upon successful authentication. Any valid Authelia user can log in to Jellyfin.
 
+## Username case sensitivity
+
+Jellyfin 12.0 treats usernames as **case-insensitive**: `Alice` and `alice` are the same Jellyfin account, and two users that differ only by capitalization cannot exist.
+
+Authelia treats usernames as **case-sensitive**. Jellyfin stores each user under the casing they were created with, so the plugin authenticates using that stored username rather than whatever was typed:
+
+1. The first login must use the exact casing Authelia expects. It creates the Jellyfin user (when enabled) under that same casing.
+2. Every later login reuses it. Once Jellyfin holds `test`, signing in as `TEST`, `Test` or `test` all authenticate against Authelia as `test`.
+
+A Jellyfin user's name is therefore the Authelia identity it logs in as, and renaming one in Jellyfin re-points it at the Authelia user of that name.
+
+Two Authelia users whose names differ only by case cannot have separate Jellyfin accounts, since Jellyfin itself cannot store both.
+
 ## Usage
 
 1. Add `https://raw.githubusercontent.com/nikarh/jellyfin-plugin-authelia/main/manifest.json` as a new Jellyfin plugin repository
