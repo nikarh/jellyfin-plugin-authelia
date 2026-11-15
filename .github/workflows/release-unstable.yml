@@ -30,7 +30,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v7
         with:
-          python-version: 3.8
+          python-version: "3.13"
       - name: Install JPRM
         run: python -m pip install jprm
       - name: Run JPRM
