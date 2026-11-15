@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Build & Test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore nuget packages
+        run: dotnet restore Authelia-Auth.sln --locked-mode
+      - name: Build
+        run: dotnet build Authelia-Auth.sln --no-restore --configuration Release
+      - name: Test
+        run: dotnet test Authelia-Auth.sln --no-build --configuration Release

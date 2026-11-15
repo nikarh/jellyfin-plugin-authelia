@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -50,17 +51,16 @@ namespace Jellyfin.Plugin.Authelia_Auth
             using var handler = new HttpClientHandler()
             {
                 CookieContainer = cookieContainer,
-                ServerCertificateCustomValidationCallback = (message, cert, chain, _) =>
-                {
-                    if (!string.IsNullOrWhiteSpace(config.AutheliaRootCa))
-                    {
-                        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                        chain.ChainPolicy.CustomTrustStore.ImportFromPem(config.AutheliaRootCa);
-                    }
-
-                    return chain.Build(cert);
-                }
             };
+
+            // Without a custom root CA the platform's default validation (chain and hostname) is used.
+            if (!string.IsNullOrWhiteSpace(config.AutheliaRootCa))
+            {
+                var rootCa = config.AutheliaRootCa;
+                handler.ServerCertificateCustomValidationCallback = (_, cert, chain, errors) =>
+                    ValidateWithCustomRoot(rootCa, cert, chain, errors);
+            }
+
             using var client = new HttpClient(handler) { BaseAddress = new Uri(config.AutheliaServer) };
 
             var jsonBody = new JsonObject
@@ -119,6 +119,36 @@ namespace Jellyfin.Plugin.Authelia_Auth
                     IsAdmin = isAdmin
                 };
             }
+        }
+
+        /// <summary>
+        /// Validates the Authelia server certificate against a custom root CA.
+        /// The hostname must still match the certificate, only the chain is validated against the custom root.
+        /// </summary>
+        /// <param name="rootCaPem">PEM encoded root CA certificate(s).</param>
+        /// <param name="cert">Certificate presented by the server.</param>
+        /// <param name="chain">Chain built by the platform.</param>
+        /// <param name="errors">Errors reported by the platform.</param>
+        /// <returns>True if the certificate is valid for the requested host and chains to the custom root.</returns>
+        private static bool ValidateWithCustomRoot(string rootCaPem, X509Certificate2 cert, X509Chain chain, SslPolicyErrors errors)
+        {
+            if (cert == null || chain == null)
+            {
+                return false;
+            }
+
+            // Only chain errors may be overridden by the custom root, everything else
+            // (hostname mismatch, missing certificate) is always fatal.
+            if ((errors & ~SslPolicyErrors.RemoteCertificateChainErrors) != SslPolicyErrors.None)
+            {
+                return false;
+            }
+
+            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            chain.ChainPolicy.CustomTrustStore.Clear();
+            chain.ChainPolicy.CustomTrustStore.ImportFromPem(rootCaPem);
+
+            return chain.Build(cert);
         }
     }
 }
